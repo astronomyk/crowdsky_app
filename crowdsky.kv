@@ -1,0 +1,1189 @@
+#:kivy 2.0
+
+# --- Color constants ---
+#:set BG_COLOR 0.08, 0.08, 0.12, 1
+#:set CARD_COLOR 0.14, 0.14, 0.20, 1
+#:set ACCENT_COLOR 0.20, 0.60, 1.0, 1
+#:set GREEN_COLOR 0.15, 0.70, 0.30, 1
+#:set GREEN_DARK 0.10, 0.50, 0.20, 1
+#:set RED_COLOR 0.85, 0.20, 0.20, 1
+#:set YELLOW_COLOR 0.85, 0.75, 0.10, 1
+#:set RED_DOT 0.85, 0.20, 0.20, 1
+#:set GREEN_DOT 0.20, 0.85, 0.30, 1
+#:set TEXT_COLOR 0.90, 0.90, 0.95, 1
+#:set DIM_COLOR 0.55, 0.55, 0.60, 1
+#:set INPUT_BG 0.18, 0.18, 0.24, 1
+
+# --- FilterBar widget ---
+# (FilterBar builds its children dynamically in Python code)
+
+# --- GalleryCard widget ---
+
+<GalleryCard>:
+    orientation: 'vertical'
+    size_hint: 1, None
+    height: dp(180)
+    padding: dp(3)
+    spacing: dp(1)
+    canvas.before:
+        Color:
+            rgba: CARD_COLOR
+        RoundedRectangle:
+            pos: self.pos
+            size: self.size
+            radius: [dp(6)]
+
+    # Thumbnail image area
+    BoxLayout:
+        size_hint_y: 1
+        canvas.before:
+            Color:
+                rgba: 0.10, 0.10, 0.16, 1
+            RoundedRectangle:
+                pos: self.pos
+                size: self.size
+                radius: [dp(4)]
+        Image:
+            texture: root.thumbnail_texture
+            allow_stretch: True
+            keep_ratio: True
+            opacity: 0 if root.is_loading else 1
+        Label:
+            text: '\u2026' if root.is_loading else ''
+            font_size: sp(18)
+            color: DIM_COLOR
+            pos: self.parent.pos
+            size: self.parent.size
+
+    Label:
+        text: root.object_name
+        font_size: sp(11)
+        bold: True
+        color: TEXT_COLOR
+        size_hint_y: None
+        height: dp(15)
+        halign: 'center'
+        text_size: self.size
+        shorten: True
+        shorten_from: 'right'
+
+    Label:
+        text: root.ra_dec_text
+        font_size: sp(9)
+        color: DIM_COLOR
+        size_hint_y: None
+        height: dp(13)
+        halign: 'center'
+        text_size: self.size
+
+    Label:
+        text: root.timestamp_text
+        font_size: sp(9)
+        color: DIM_COLOR
+        size_hint_y: None
+        height: dp(13)
+        halign: 'center'
+        text_size: self.size
+
+# --- AlbumRow widget ---
+
+<AlbumRow>:
+    orientation: 'horizontal'
+    size_hint_y: None
+    height: dp(48)
+    spacing: dp(8)
+    padding: dp(4), 0
+    opacity: 0.4 if root.is_complete else 1.0
+
+    CheckBox:
+        size_hint_x: None
+        width: dp(36)
+        active: root.is_selected
+        disabled: root.is_complete
+        on_active: root.is_selected = self.active
+
+    Label:
+        text: root.target_name
+        font_size: sp(14)
+        color: TEXT_COLOR
+        halign: 'left'
+        text_size: self.size
+        valign: 'middle'
+
+    # Green badge
+    BoxLayout:
+        size_hint_x: None
+        width: dp(44)
+        padding: dp(2)
+        canvas.before:
+            Color:
+                rgba: 0.15, 0.50, 0.20, 0.8
+            RoundedRectangle:
+                pos: self.pos
+                size: self.size
+                radius: [dp(4)]
+        Label:
+            text: str(int(root.green_count))
+            font_size: sp(12)
+            color: 0.5, 1.0, 0.5, 1
+            halign: 'center'
+            valign: 'middle'
+            text_size: self.size
+
+    # Yellow badge
+    BoxLayout:
+        size_hint_x: None
+        width: dp(44)
+        padding: dp(2)
+        canvas.before:
+            Color:
+                rgba: 0.55, 0.50, 0.08, 0.8
+            RoundedRectangle:
+                pos: self.pos
+                size: self.size
+                radius: [dp(4)]
+        Label:
+            text: str(int(root.yellow_count))
+            font_size: sp(12)
+            color: 1.0, 0.95, 0.4, 1
+            halign: 'center'
+            valign: 'middle'
+            text_size: self.size
+
+    # Red badge
+    BoxLayout:
+        size_hint_x: None
+        width: dp(44)
+        padding: dp(2)
+        canvas.before:
+            Color:
+                rgba: 0.55, 0.12, 0.12, 0.8
+            RoundedRectangle:
+                pos: self.pos
+                size: self.size
+                radius: [dp(4)]
+        Label:
+            text: str(int(root.red_count))
+            font_size: sp(12)
+            color: 1.0, 0.5, 0.5, 1
+            halign: 'center'
+            valign: 'middle'
+            text_size: self.size
+
+# --- DonateSeestarCard widget ---
+
+<DonateSeestarCard>:
+    orientation: 'vertical'
+    size_hint_y: None
+    height: self.minimum_height
+    padding: dp(12)
+    spacing: dp(8) if root.is_expanded else 0
+    canvas.before:
+        Color:
+            rgba: CARD_COLOR
+        RoundedRectangle:
+            pos: self.pos
+            size: self.size
+            radius: [dp(8)]
+
+    Button:
+        id: header_btn
+        size_hint_y: None
+        height: dp(36)
+        background_color: 0, 0, 0, 0
+        on_release: root.toggle_expanded()
+        BoxLayout:
+            pos: header_btn.pos
+            size: header_btn.size
+            orientation: 'horizontal'
+            spacing: dp(8)
+            Label:
+                text: ('v ' if root.is_expanded else '> ') + (root.serial_number or root.ip_address)
+                font_size: sp(16)
+                bold: True
+                color: TEXT_COLOR
+                halign: 'left'
+                text_size: self.size
+                valign: 'middle'
+            Label:
+                text: root.product_model
+                font_size: sp(13)
+                color: DIM_COLOR
+                size_hint_x: None
+                width: dp(120)
+                halign: 'right'
+                text_size: self.size
+                valign: 'middle'
+
+    BoxLayout:
+        orientation: 'horizontal'
+        size_hint_y: None
+        height: dp(28) if root.is_expanded else 0
+        opacity: 1 if root.is_expanded else 0
+        spacing: dp(8)
+        Button:
+            text: 'Select All'
+            font_size: sp(12)
+            size_hint_x: 0.3
+            background_color: ACCENT_COLOR
+            color: 1, 1, 1, 1
+            on_release: root.select_all()
+        Button:
+            text: 'Deselect All'
+            font_size: sp(12)
+            size_hint_x: 0.3
+            background_color: 0.3, 0.3, 0.35, 1
+            color: 1, 1, 1, 1
+            on_release: root.deselect_all()
+        CheckBox:
+            id: chk_scrub
+            size_hint_x: None
+            width: dp(28)
+            active: root.scrub_location
+            on_active: root.scrub_location = self.active
+        Label:
+            text: 'Scrub LAT/LONG'
+            font_size: sp(11)
+            color: DIM_COLOR
+            size_hint_x: 0.4
+            halign: 'left'
+            text_size: self.size
+            valign: 'middle'
+
+    BoxLayout:
+        id: album_list
+        orientation: 'vertical'
+        size_hint_y: None
+        height: self.minimum_height if root.is_expanded else 0
+        opacity: 1 if root.is_expanded else 0
+        spacing: dp(4)
+
+# --- DonateHarddriveCard widget ---
+
+<DonateHarddriveCard>:
+    orientation: 'vertical'
+    size_hint_y: None
+    height: self.minimum_height
+    padding: dp(12)
+    spacing: dp(8) if root.is_expanded else 0
+    canvas.before:
+        Color:
+            rgba: CARD_COLOR
+        RoundedRectangle:
+            pos: self.pos
+            size: self.size
+            radius: [dp(8)]
+
+    Button:
+        id: header_btn
+        size_hint_y: None
+        height: dp(36)
+        background_color: 0, 0, 0, 0
+        on_release: root.toggle_expanded()
+        BoxLayout:
+            pos: header_btn.pos
+            size: header_btn.size
+            orientation: 'horizontal'
+            spacing: dp(8)
+            Label:
+                text: ('v ' if root.is_expanded else '> ') + root.dir_path
+                font_size: sp(14)
+                bold: True
+                color: TEXT_COLOR
+                halign: 'left'
+                text_size: self.size
+                valign: 'middle'
+                shorten: True
+                shorten_from: 'left'
+
+    BoxLayout:
+        orientation: 'horizontal'
+        size_hint_y: None
+        height: dp(28) if root.is_expanded else 0
+        opacity: 1 if root.is_expanded else 0
+        spacing: dp(8)
+        Button:
+            text: 'Select All'
+            font_size: sp(12)
+            size_hint_x: 0.3
+            background_color: ACCENT_COLOR
+            color: 1, 1, 1, 1
+            on_release: root.select_all()
+        Button:
+            text: 'Deselect All'
+            font_size: sp(12)
+            size_hint_x: 0.3
+            background_color: 0.3, 0.3, 0.35, 1
+            color: 1, 1, 1, 1
+            on_release: root.deselect_all()
+        CheckBox:
+            id: chk_scrub
+            size_hint_x: None
+            width: dp(28)
+            active: root.scrub_location
+            on_active: root.scrub_location = self.active
+        Label:
+            text: 'Scrub LAT/LONG'
+            font_size: sp(11)
+            color: DIM_COLOR
+            size_hint_x: 0.4
+            halign: 'left'
+            text_size: self.size
+            valign: 'middle'
+
+    BoxLayout:
+        id: album_list
+        orientation: 'vertical'
+        size_hint_y: None
+        height: self.minimum_height if root.is_expanded else 0
+        opacity: 1 if root.is_expanded else 0
+
+# --- JobListItem widget ---
+
+<JobListItem>:
+    orientation: 'vertical'
+    size_hint_y: None
+    height: dp(56)
+    padding: dp(8), dp(4)
+    spacing: dp(2)
+    canvas.before:
+        Color:
+            rgba: CARD_COLOR
+        RoundedRectangle:
+            pos: self.pos
+            size: self.size
+            radius: [dp(6)]
+
+    # Row 1: source : target | chunk time
+    BoxLayout:
+        orientation: 'horizontal'
+        size_hint_y: None
+        height: dp(22)
+        Label:
+            text: (root.source_label + ' : ' if root.source_label else '') + root.target_name
+            font_size: sp(13)
+            color: RED_DOT if root.status == 'failed' else TEXT_COLOR
+            halign: 'left'
+            text_size: self.size
+            valign: 'middle'
+            shorten: True
+            shorten_from: 'left'
+        Label:
+            text: root.chunk_time
+            font_size: sp(12)
+            size_hint_x: None
+            width: dp(100)
+            halign: 'right'
+            text_size: self.size
+            valign: 'middle'
+            color: DIM_COLOR
+
+    # Row 2: progress bar | status text
+    BoxLayout:
+        orientation: 'horizontal'
+        size_hint_y: None
+        height: dp(22)
+        spacing: dp(8)
+        ProgressBar:
+            value: root.progress
+            max: 100
+            opacity: 1 if root.status == 'running' else 0
+        Label:
+            text: 'pending' if root.status == 'pending' else ('complete' if root.status == 'complete' else ('FAILED' if root.status == 'failed' else (root.phase_text or (str(int(root.progress)) + '%'))))
+            font_size: sp(11)
+            size_hint_x: None
+            width: dp(80)
+            halign: 'right'
+            text_size: self.size
+            valign: 'middle'
+            color: DIM_COLOR if root.status == 'pending' else (GREEN_DOT if root.status == 'complete' else (RED_DOT if root.status == 'failed' else ACCENT_COLOR))
+
+# --- PaginationBar widget ---
+# (PaginationBar builds its children dynamically in Python code)
+
+# === SCREENS ===
+
+# --- LoginScreen ---
+
+<LoginScreen>:
+    name: 'login'
+
+    BoxLayout:
+        orientation: 'vertical'
+        padding: dp(32)
+        spacing: dp(20)
+        canvas.before:
+            Color:
+                rgba: BG_COLOR
+            Rectangle:
+                pos: self.pos
+                size: self.size
+
+        Widget:
+            size_hint_y: 0.15
+
+        Label:
+            text: 'CrowdSky'
+            font_size: sp(36)
+            bold: True
+            color: ACCENT_COLOR
+            size_hint_y: None
+            height: dp(48)
+
+        Label:
+            text: 'Citizen science for time-domain astronomy'
+            font_size: sp(14)
+            color: DIM_COLOR
+            size_hint_y: None
+            height: dp(24)
+
+        Widget:
+            size_hint_y: 0.05
+
+        TextInput:
+            id: username_input
+            hint_text: 'Username'
+            multiline: False
+            size_hint_y: None
+            height: dp(48)
+            font_size: sp(16)
+            padding: [dp(12), dp(12)]
+            background_color: INPUT_BG
+            foreground_color: TEXT_COLOR
+            hint_text_color: DIM_COLOR
+            cursor_color: ACCENT_COLOR
+
+        TextInput:
+            id: password_input
+            hint_text: 'Password'
+            password: True
+            multiline: False
+            size_hint_y: None
+            height: dp(48)
+            font_size: sp(16)
+            padding: [dp(12), dp(12)]
+            background_color: INPUT_BG
+            foreground_color: TEXT_COLOR
+            hint_text_color: DIM_COLOR
+            cursor_color: ACCENT_COLOR
+            on_text_validate: root.do_login()
+
+        BoxLayout:
+            orientation: 'horizontal'
+            size_hint_y: None
+            height: dp(36)
+            spacing: dp(8)
+            CheckBox:
+                id: remember_me
+                size_hint_x: None
+                width: dp(36)
+                active: True
+                color: ACCENT_COLOR
+            Label:
+                text: 'Remember me'
+                font_size: sp(14)
+                color: DIM_COLOR
+                halign: 'left'
+                text_size: self.size
+                valign: 'middle'
+
+        Button:
+            text: 'Logging in...' if root.is_loading else 'Log In'
+            size_hint_y: None
+            height: dp(52)
+            font_size: sp(18)
+            bold: True
+            disabled: root.is_loading
+            background_color: ACCENT_COLOR
+            color: 1, 1, 1, 1
+            on_release: root.do_login()
+
+        Label:
+            text: root.error_text
+            font_size: sp(14)
+            color: 0.95, 0.30, 0.30, 1
+            size_hint_y: None
+            height: dp(24)
+            halign: 'center'
+            text_size: self.size
+
+        Label:
+            text: 'No account? Sign up at [ref=signup]crowdsky.univie.ac.at[/ref]'
+            markup: True
+            font_size: sp(13)
+            color: DIM_COLOR
+            size_hint_y: None
+            height: dp(28)
+            halign: 'center'
+            text_size: self.size
+            on_ref_press: root.open_signup()
+
+        Widget:
+            size_hint_y: 0.2
+
+# --- HomeScreen ---
+
+<HomeScreen>:
+    name: 'home'
+
+    BoxLayout:
+        orientation: 'vertical'
+        padding: dp(20)
+        spacing: dp(12)
+        canvas.before:
+            Color:
+                rgba: BG_COLOR
+            Rectangle:
+                pos: self.pos
+                size: self.size
+
+        # Header
+        BoxLayout:
+            orientation: 'horizontal'
+            size_hint_y: None
+            height: dp(44)
+            Label:
+                text: 'CrowdSky'
+                font_size: sp(24)
+                bold: True
+                color: ACCENT_COLOR
+                halign: 'left'
+                text_size: self.size
+                valign: 'middle'
+            Button:
+                text: 'Logout'
+                size_hint_x: None
+                width: dp(80)
+                font_size: sp(13)
+                background_color: 0.3, 0.3, 0.35, 1
+                color: 1, 1, 1, 1
+                on_release: root.do_logout()
+
+        # Status text
+        Label:
+            text: root.status_text
+            font_size: sp(12)
+            color: DIM_COLOR
+            size_hint_y: None
+            height: dp(20)
+            halign: 'center'
+            text_size: self.size
+
+        Widget:
+            size_hint_y: 0.05
+
+        # Section: My Observations
+        Label:
+            text: 'My Observations'
+            font_size: sp(16)
+            bold: True
+            size_hint_y: None
+            height: dp(40)
+            halign: 'center'
+            text_size: self.size
+            valign: 'middle'
+            canvas.before:
+                Color:
+                    rgba: 0.12, 0.18, 0.30, 1
+                RoundedRectangle:
+                    pos: self.pos
+                    size: self.size
+                    radius: [dp(6)]
+            color: ACCENT_COLOR
+
+        Button:
+            text: 'Sky Map'
+            size_hint_y: None
+            height: dp(56)
+            font_size: sp(18)
+            background_color: CARD_COLOR
+            color: TEXT_COLOR
+            on_release: root.go_skymap()
+
+        Button:
+            text: 'Gallery'
+            size_hint_y: None
+            height: dp(56)
+            font_size: sp(18)
+            background_color: CARD_COLOR
+            color: TEXT_COLOR
+            on_release: root.go_gallery()
+
+        Widget:
+            size_hint_y: 0.05
+
+        # Section: Donate to Science
+        Label:
+            text: 'Donate to Science'
+            font_size: sp(16)
+            bold: True
+            size_hint_y: None
+            height: dp(40)
+            halign: 'center'
+            text_size: self.size
+            valign: 'middle'
+            canvas.before:
+                Color:
+                    rgba: 0.10, 0.22, 0.12, 1
+                RoundedRectangle:
+                    pos: self.pos
+                    size: self.size
+                    radius: [dp(6)]
+            color: GREEN_COLOR
+
+        Button:
+            text: 'From Seestar'
+            size_hint_y: None
+            height: dp(56)
+            font_size: sp(18)
+            background_color: CARD_COLOR
+            color: TEXT_COLOR
+            on_release: root.go_donate_seestar()
+
+        Button:
+            id: btn_harddrive
+            text: 'From Hard Drive'
+            size_hint_y: None
+            height: dp(56)
+            font_size: sp(18)
+            background_color: CARD_COLOR
+            color: TEXT_COLOR
+            disabled: root.is_android
+            opacity: 0.4 if root.is_android else 1.0
+            on_release: root.go_donate_harddrive()
+
+        Widget:
+            size_hint_y: 1
+
+# --- SkyMapScreen ---
+
+<SkyMapScreen>:
+    name: 'skymap'
+
+    BoxLayout:
+        orientation: 'vertical'
+        padding: dp(16)
+        spacing: dp(12)
+        canvas.before:
+            Color:
+                rgba: BG_COLOR
+            Rectangle:
+                pos: self.pos
+                size: self.size
+
+        # Header
+        BoxLayout:
+            orientation: 'horizontal'
+            size_hint_y: None
+            height: dp(44)
+            Button:
+                text: '< Back'
+                size_hint_x: None
+                width: dp(80)
+                font_size: sp(14)
+                background_color: 0.3, 0.3, 0.35, 1
+                color: 1, 1, 1, 1
+                on_release: root.go_back()
+            Label:
+                text: 'Sky Map'
+                font_size: sp(22)
+                bold: True
+                color: ACCENT_COLOR
+                halign: 'center'
+                text_size: self.size
+                valign: 'middle'
+            Widget:
+                size_hint_x: None
+                width: dp(80)
+
+        # Filter bar
+        FilterBar:
+            id: filter_bar
+            size_hint_y: None
+            height: dp(36)
+            spacing: dp(4)
+            padding: dp(4), dp(2)
+            canvas.before:
+                Color:
+                    rgba: CARD_COLOR
+                RoundedRectangle:
+                    pos: self.pos
+                    size: self.size
+                    radius: [dp(6)]
+
+        # Sky map — square container
+        SkyMapWidget:
+            id: sky_map
+            size_hint_y: None
+            height: self.width
+
+        # Timeline fills remaining space
+        TimelineWidget:
+            id: timeline
+
+# --- GalleryScreen ---
+
+<GalleryScreen>:
+    name: 'gallery'
+
+    BoxLayout:
+        orientation: 'vertical'
+        padding: dp(16)
+        spacing: dp(12)
+        canvas.before:
+            Color:
+                rgba: BG_COLOR
+            Rectangle:
+                pos: self.pos
+                size: self.size
+
+        # Header
+        BoxLayout:
+            orientation: 'horizontal'
+            size_hint_y: None
+            height: dp(44)
+            Button:
+                text: '< Back'
+                size_hint_x: None
+                width: dp(80)
+                font_size: sp(14)
+                background_color: 0.3, 0.3, 0.35, 1
+                color: 1, 1, 1, 1
+                on_release: root.go_back()
+            Label:
+                text: 'Gallery'
+                font_size: sp(22)
+                bold: True
+                color: ACCENT_COLOR
+                halign: 'center'
+                text_size: self.size
+                valign: 'middle'
+            Widget:
+                size_hint_x: None
+                width: dp(80)
+
+        # Filter bar
+        FilterBar:
+            id: filter_bar
+            size_hint_y: None
+            height: dp(36)
+            spacing: dp(4)
+            padding: dp(4), dp(2)
+            canvas.before:
+                Color:
+                    rgba: CARD_COLOR
+                RoundedRectangle:
+                    pos: self.pos
+                    size: self.size
+                    radius: [dp(6)]
+
+        # Info text
+        Label:
+            text: root.info_text
+            font_size: sp(11)
+            color: DIM_COLOR
+            size_hint_y: None
+            height: dp(16)
+            halign: 'right'
+            text_size: self.size
+
+        # Thumbnail grid in scroll view
+        ScrollView:
+            GridLayout:
+                id: thumbnail_grid
+                cols: 3
+                spacing: dp(6)
+                padding: dp(2)
+                size_hint_y: None
+                height: self.minimum_height
+
+        # Pagination
+        PaginationBar:
+            id: pagination_bar
+            size_hint_y: None
+            height: dp(36)
+            spacing: dp(3)
+            padding: dp(4), dp(2)
+
+# --- DonateSeestarScreen ---
+
+<DonateSeestarScreen>:
+    name: 'donate_seestar'
+
+    BoxLayout:
+        orientation: 'vertical'
+        padding: dp(16)
+        spacing: dp(12)
+        canvas.before:
+            Color:
+                rgba: BG_COLOR
+            Rectangle:
+                pos: self.pos
+                size: self.size
+
+        # Header
+        BoxLayout:
+            orientation: 'horizontal'
+            size_hint_y: None
+            height: dp(44)
+            Button:
+                text: '< Back'
+                size_hint_x: None
+                width: dp(80)
+                font_size: sp(14)
+                background_color: 0.3, 0.3, 0.35, 1
+                color: 1, 1, 1, 1
+                on_release: root.go_back()
+            Label:
+                text: 'Donate Frames to Science'
+                font_size: sp(18)
+                bold: True
+                color: ACCENT_COLOR
+                halign: 'center'
+                text_size: self.size
+                valign: 'middle'
+
+        # Scan controls
+        BoxLayout:
+            orientation: 'horizontal'
+            size_hint_y: None
+            height: dp(44)
+            spacing: dp(8)
+            Spinner:
+                id: seestar_count
+                text: '1'
+                values: ['1', '2', '3', '4', '5']
+                size_hint_x: None
+                width: dp(60)
+                font_size: sp(14)
+            Button:
+                text: 'Scan Network'
+                font_size: sp(14)
+                background_color: ACCENT_COLOR
+                color: 1, 1, 1, 1
+                on_release: root.do_scan_network()
+            Button:
+                text: 'Crawl Files'
+                font_size: sp(14)
+                background_color: ACCENT_COLOR if root.can_crawl else (0.3, 0.3, 0.35, 1)
+                color: 1, 1, 1, 1
+                disabled: not root.can_crawl
+                on_release: root.do_crawl_files()
+
+        # Manual IP
+        BoxLayout:
+            orientation: 'horizontal'
+            size_hint_y: None
+            height: dp(44)
+            spacing: dp(8)
+            TextInput:
+                id: manual_ip
+                hint_text: 'Manual IP address'
+                multiline: False
+                font_size: sp(14)
+                padding: [dp(8), dp(8)]
+                background_color: INPUT_BG
+                foreground_color: TEXT_COLOR
+                hint_text_color: DIM_COLOR
+                cursor_color: ACCENT_COLOR
+            Button:
+                text: 'Add'
+                size_hint_x: None
+                width: dp(60)
+                font_size: sp(14)
+                background_color: ACCENT_COLOR
+                color: 1, 1, 1, 1
+                on_release: root.add_manual_ip()
+
+        # Progress
+        Label:
+            text: root.scan_status
+            font_size: sp(12)
+            color: DIM_COLOR
+            size_hint_y: None
+            height: dp(20)
+            halign: 'center'
+            text_size: self.size
+
+        ProgressBar:
+            value: root.scan_progress
+            max: root.scan_progress_max
+            size_hint_y: None
+            height: dp(8)
+            opacity: 1 if root.is_scanning else 0
+
+        # Seestar cards container
+        ScrollView:
+            BoxLayout:
+                id: cards_container
+                orientation: 'vertical'
+                size_hint_y: None
+                height: self.minimum_height
+                spacing: dp(8)
+                Label:
+                    text: 'Scan for Seestars to see targets here'
+                    font_size: sp(13)
+                    color: DIM_COLOR
+                    size_hint_y: None
+                    height: dp(40)
+
+        # Summary
+        Label:
+            text: root.summary_text
+            font_size: sp(13)
+            color: DIM_COLOR
+            size_hint_y: None
+            height: dp(24)
+            halign: 'center'
+            text_size: self.size
+
+        # Stack and Upload button
+        Button:
+            text: 'Stack and Upload'
+            size_hint_y: None
+            height: dp(56)
+            font_size: sp(18)
+            bold: True
+            background_color: GREEN_COLOR if root.can_proceed else (0.3, 0.3, 0.35, 1)
+            color: 1, 1, 1, 1
+            disabled: not root.can_proceed
+            on_release: root.do_stack_and_upload()
+
+# --- DonateHarddriveScreen ---
+
+<DonateHarddriveScreen>:
+    name: 'donate_harddrive'
+
+    BoxLayout:
+        orientation: 'vertical'
+        padding: dp(16)
+        spacing: dp(12)
+        canvas.before:
+            Color:
+                rgba: BG_COLOR
+            Rectangle:
+                pos: self.pos
+                size: self.size
+
+        # Header
+        BoxLayout:
+            orientation: 'horizontal'
+            size_hint_y: None
+            height: dp(44)
+            Button:
+                text: '< Back'
+                size_hint_x: None
+                width: dp(80)
+                font_size: sp(14)
+                background_color: 0.3, 0.3, 0.35, 1
+                color: 1, 1, 1, 1
+                on_release: root.go_back()
+            Label:
+                text: 'Donate Frames to Science'
+                font_size: sp(18)
+                bold: True
+                color: ACCENT_COLOR
+                halign: 'center'
+                text_size: self.size
+                valign: 'middle'
+
+        # Path selection
+        BoxLayout:
+            orientation: 'horizontal'
+            size_hint_y: None
+            height: dp(44)
+            spacing: dp(8)
+            TextInput:
+                id: path_input
+                hint_text: 'Click to select folder...'
+                multiline: False
+                font_size: sp(14)
+                padding: [dp(8), dp(8)]
+                background_color: INPUT_BG
+                foreground_color: TEXT_COLOR
+                hint_text_color: DIM_COLOR
+                cursor_color: ACCENT_COLOR
+                on_focus: if self.focus: root.do_browse()
+            Button:
+                text: 'Crawl Files'
+                size_hint_x: None
+                width: dp(100)
+                font_size: sp(14)
+                background_color: ACCENT_COLOR
+                color: 1, 1, 1, 1
+                on_release: root.do_crawl()
+
+        # Progress
+        Label:
+            text: root.crawl_status
+            font_size: sp(12)
+            color: DIM_COLOR
+            size_hint_y: None
+            height: dp(20)
+            halign: 'center'
+            text_size: self.size
+
+        ProgressBar:
+            value: root.crawl_progress
+            max: 100
+            size_hint_y: None
+            height: dp(8)
+            opacity: 1 if root.is_crawling else 0
+
+        # Cards container
+        ScrollView:
+            BoxLayout:
+                id: cards_container
+                orientation: 'vertical'
+                size_hint_y: None
+                height: self.minimum_height
+                spacing: dp(8)
+                Label:
+                    text: 'Select a directory and crawl to see targets here'
+                    font_size: sp(13)
+                    color: DIM_COLOR
+                    size_hint_y: None
+                    height: dp(40)
+
+        # Stack and Upload button
+        Button:
+            text: 'Stack and Upload'
+            size_hint_y: None
+            height: dp(56)
+            font_size: sp(18)
+            bold: True
+            background_color: GREEN_COLOR
+            color: 1, 1, 1, 1
+            on_release: root.do_stack_and_upload()
+
+# --- StatusScreen ---
+
+<StatusScreen>:
+    name: 'status'
+
+    BoxLayout:
+        orientation: 'vertical'
+        padding: dp(16)
+        spacing: dp(12)
+        canvas.before:
+            Color:
+                rgba: BG_COLOR
+            Rectangle:
+                pos: self.pos
+                size: self.size
+
+        # Header
+        BoxLayout:
+            orientation: 'horizontal'
+            size_hint_y: None
+            height: dp(44)
+            Button:
+                text: '< Back'
+                size_hint_x: None
+                width: dp(80)
+                font_size: sp(14)
+                background_color: 0.3, 0.3, 0.35, 1
+                color: 1, 1, 1, 1
+                on_release: root.go_back()
+            Label:
+                text: 'Stacking Progress'
+                font_size: sp(22)
+                bold: True
+                color: ACCENT_COLOR
+                halign: 'center'
+                text_size: self.size
+                valign: 'middle'
+            Widget:
+                size_hint_x: None
+                width: dp(80)
+
+        # Summary card
+        BoxLayout:
+            orientation: 'vertical'
+            size_hint_y: None
+            height: dp(60)
+            padding: dp(12)
+            canvas.before:
+                Color:
+                    rgba: CARD_COLOR
+                RoundedRectangle:
+                    pos: self.pos
+                    size: self.size
+                    radius: [dp(8)]
+            Label:
+                text: root.summary_text
+                font_size: sp(15)
+                color: TEXT_COLOR
+                halign: 'center'
+                text_size: self.size
+                valign: 'middle'
+            Label:
+                text: root.estimated_remaining
+                font_size: sp(13)
+                color: DIM_COLOR
+                halign: 'center'
+                text_size: self.size
+                valign: 'middle'
+
+        # Stacking jobs list
+        Label:
+            text: 'Stacking Jobs'
+            font_size: sp(14)
+            bold: True
+            color: TEXT_COLOR
+            size_hint_y: None
+            height: dp(24)
+            halign: 'left'
+            text_size: self.size
+
+        ScrollView:
+            size_hint_y: 1
+            BoxLayout:
+                id: stack_jobs_list
+                orientation: 'vertical'
+                size_hint_y: None
+                height: self.minimum_height
+                spacing: dp(4)
+                Label:
+                    text: 'No stacking jobs yet'
+                    font_size: sp(13)
+                    color: DIM_COLOR
+                    size_hint_y: None
+                    height: dp(32)
+
+        # Upload jobs list
+        Label:
+            text: 'Upload Jobs'
+            font_size: sp(14)
+            bold: True
+            color: TEXT_COLOR
+            size_hint_y: None
+            height: dp(24)
+            halign: 'left'
+            text_size: self.size
+
+        ScrollView:
+            size_hint_y: 1
+            BoxLayout:
+                id: upload_jobs_list
+                orientation: 'vertical'
+                size_hint_y: None
+                height: self.minimum_height
+                spacing: dp(4)
+                Label:
+                    text: 'No upload jobs yet'
+                    font_size: sp(13)
+                    color: DIM_COLOR
+                    size_hint_y: None
+                    height: dp(32)
+
+        # Cancel / Back button
+        Button:
+            text: 'Cancel' if root.is_running else 'Back to Home'
+            size_hint_y: None
+            height: dp(52)
+            font_size: sp(18)
+            bold: True
+            background_color: RED_COLOR if root.is_running else ACCENT_COLOR
+            color: 1, 1, 1, 1
+            on_release: root.do_cancel() if root.is_running else root.go_back()

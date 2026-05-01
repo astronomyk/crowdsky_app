@@ -1,0 +1,100 @@
+name: Build Desktop App
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            artifact: CrowdSky-*.exe
+          - os: macos-latest
+            artifact: CrowdSky-*
+
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout app
+        uses: actions/checkout@v4
+
+      - name: Checkout seestarpy
+        uses: actions/checkout@v4
+        with:
+          repository: astronomyk/seestarpy
+          path: _seestarpy
+
+      - name: Checkout CrowdSky (for the `crowdsky` stacking package)
+        uses: actions/checkout@v4
+        with:
+          repository: astronomyk/CrowdSky
+          path: _crowdsky_repo
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: |
+          pip install pyinstaller
+          pip install "kivy[base]>=2.3.0"
+          pip install requests pysmb tzlocal websockets
+          pip install numpy opencv-python astropy astroalign Pillow
+          pip install -e _seestarpy
+          pip install -e _crowdsky_repo/crowdsky
+
+      # sep_pjw may not be available on all platforms; fall back to sep
+      - name: Install SEP
+        run: |
+          pip install sep_pjw || pip install sep || true
+        shell: bash
+
+      - name: Symlink seestarpy into app root
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            cp -r _seestarpy/src/seestarpy seestarpy
+          else
+            ln -s "$(pwd)/_seestarpy/src/seestarpy" seestarpy
+          fi
+
+      - name: Build with PyInstaller
+        run: pyinstaller CrowdSky.spec --noconfirm
+
+      - name: List output
+        shell: bash
+        working-directory: dist
+        run: ls -lh
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: CrowdSky-${{ runner.os }}
+          path: dist/CrowdSky-*
+          if-no-files-found: error
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: List artifacts
+        run: find artifacts -type f | head -20
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/**/*
+          generate_release_notes: true

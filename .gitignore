@@ -1,0 +1,34 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Buildozer / Android
+.buildozer/
+bin/
+build/
+*.apk
+*.aab
+
+# PyInstaller
+dist/
+*.spec.bak
+build.log
+
+# seestarpy local junction (created at clone-time, see README)
+/seestarpy
+
+# Test / temp
+*.log
+*.tmp

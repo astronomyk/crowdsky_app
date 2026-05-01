@@ -1,0 +1,31 @@
+[project]
+name = "crowdsky-app"
+version = "0.1.1"
+description = "CrowdSky desktop and Android client for Seestar S50 telescope users"
+requires-python = ">=3.11"
+dependencies = [
+    "kivy[base]>=2.3.0",
+    "requests",
+    "pysmb>=1.2.9",
+    "websockets",
+    "tzlocal",
+    "numpy",
+    "opencv-python",
+    "astropy>=6.0",
+    "astroalign",
+    "Pillow",
+    "sep>=1.4.0",
+    "seestarpy",
+    "crowdsky",
+]
+
+[tool.uv.sources]
+seestarpy = { path = "../seestarpy", editable = true }
+crowdsky = { path = "../CrowdSky/crowdsky", editable = true }
+
+[dependency-groups]
+dev = [
+    "pyinstaller>=6.0",
+    "buildozer>=1.5",
+    "pytest>=8.0",
+]
