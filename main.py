@@ -52,11 +52,14 @@ from crowdsky_app.widgets.timeline import TimelineWidget
 from crowdsky_app.widgets.album_row import AlbumRow
 from crowdsky_app.widgets.donate_seestar_card import DonateSeestarCard
 from crowdsky_app.widgets.job_list_item import JobListItem
+from crowdsky_app.widgets.horizon_compass import HorizonCompass
+from crowdsky_app.widgets.plan_skymap import PlanSkyMap
 from crowdsky_app.screens.login_screen import LoginScreen
 from crowdsky_app.screens.home_screen import HomeScreen
 from crowdsky_app.screens.skymap_screen import SkyMapScreen
 from crowdsky_app.screens.gallery_screen import GalleryScreen
 from crowdsky_app.screens.donate_seestar_screen import DonateSeestarScreen
+from crowdsky_app.screens.plan_screen import PlanScreen
 from crowdsky_app.screens.status_screen import StatusScreen
 
 if not _IS_ANDROID:
@@ -72,6 +75,8 @@ Factory.register("TimelineWidget", cls=TimelineWidget)
 Factory.register("AlbumRow", cls=AlbumRow)
 Factory.register("DonateSeestarCard", cls=DonateSeestarCard)
 Factory.register("JobListItem", cls=JobListItem)
+Factory.register("HorizonCompass", cls=HorizonCompass)
+Factory.register("PlanSkyMap", cls=PlanSkyMap)
 
 if not _IS_ANDROID:
     Factory.register("DonateHarddriveCard", cls=DonateHarddriveCard)
@@ -90,6 +95,7 @@ class CrowdSkyApp(App):
         sm.add_widget(DonateSeestarScreen(name="donate_seestar"))
         if not _IS_ANDROID:
             sm.add_widget(DonateHarddriveScreen(name="donate_harddrive"))
+        sm.add_widget(PlanScreen(name="plan"))
         sm.add_widget(StatusScreen(name="status"))
         return sm
 

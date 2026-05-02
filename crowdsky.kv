@@ -652,6 +652,15 @@
             opacity: 0.4 if root.is_android else 1.0
             on_release: root.go_donate_harddrive()
 
+        Button:
+            text: 'Plan for Tonight'
+            size_hint_y: None
+            height: dp(56)
+            font_size: sp(18)
+            background_color: CARD_COLOR
+            color: TEXT_COLOR
+            on_release: root.go_plan()
+
         Widget:
             size_hint_y: 1
 
@@ -1187,3 +1196,267 @@
             background_color: RED_COLOR if root.is_running else ACCENT_COLOR
             color: 1, 1, 1, 1
             on_release: root.do_cancel() if root.is_running else root.go_back()
+
+# --- PlanScreen ---
+
+<PlanScreen>:
+    name: 'plan'
+
+    BoxLayout:
+        orientation: 'vertical'
+        padding: dp(12)
+        spacing: dp(8)
+        canvas.before:
+            Color:
+                rgba: BG_COLOR
+            Rectangle:
+                pos: self.pos
+                size: self.size
+
+        # Header
+        BoxLayout:
+            orientation: 'horizontal'
+            size_hint_y: None
+            height: dp(40)
+            Button:
+                text: '< Back'
+                size_hint_x: None
+                width: dp(72)
+                font_size: sp(13)
+                background_color: 0.3, 0.3, 0.35, 1
+                color: 1, 1, 1, 1
+                on_release: root.go_back()
+            Label:
+                text: 'Plan for Tonight'
+                font_size: sp(17)
+                bold: True
+                color: ACCENT_COLOR
+                halign: 'center'
+                text_size: self.size
+                valign: 'middle'
+
+        ScrollView:
+            do_scroll_x: False
+            BoxLayout:
+                orientation: 'vertical'
+                size_hint_y: None
+                height: self.minimum_height
+                spacing: dp(10)
+                padding: [0, dp(4), 0, dp(4)]
+
+                # --- Seestar discovery ---
+                Label:
+                    text: 'Seestar'
+                    font_size: sp(13)
+                    bold: True
+                    color: ACCENT_COLOR
+                    size_hint_y: None
+                    height: dp(22)
+                    halign: 'left'
+                    text_size: self.size
+                BoxLayout:
+                    orientation: 'horizontal'
+                    size_hint_y: None
+                    height: dp(40)
+                    spacing: dp(8)
+                    Spinner:
+                        id: seestar_count
+                        text: '1'
+                        values: ['1', '2', '3', '4', '5']
+                        size_hint_x: None
+                        width: dp(60)
+                        font_size: sp(13)
+                    Button:
+                        text: 'Scan Network'
+                        font_size: sp(13)
+                        background_color: ACCENT_COLOR
+                        color: 1, 1, 1, 1
+                        on_release: root.do_scan_network()
+                BoxLayout:
+                    id: seestar_list
+                    orientation: 'vertical'
+                    size_hint_y: None
+                    height: self.minimum_height
+                    spacing: dp(2)
+                Label:
+                    text: root.location_text + '   ' + root.fov_text
+                    font_size: sp(11)
+                    color: DIM_COLOR
+                    size_hint_y: None
+                    height: dp(18)
+                    halign: 'left'
+                    text_size: self.size
+
+                # --- Preferences ---
+                Label:
+                    text: 'Preferences'
+                    font_size: sp(13)
+                    bold: True
+                    color: ACCENT_COLOR
+                    size_hint_y: None
+                    height: dp(22)
+                    halign: 'left'
+                    text_size: self.size
+
+                BoxLayout:
+                    orientation: 'horizontal'
+                    size_hint_y: None
+                    height: dp(34)
+                    spacing: dp(6)
+                    Label:
+                        text: 'Blocks/target:'
+                        font_size: sp(12)
+                        color: TEXT_COLOR
+                        size_hint_x: None
+                        width: dp(110)
+                        halign: 'left'
+                        text_size: self.size
+                        valign: 'middle'
+                    Slider:
+                        id: blocks_slider
+                        min: 2
+                        max: 40
+                        step: 1
+                        value: root.blocks_per_target
+                        on_value: root.blocks_per_target = self.value
+                    Label:
+                        text: str(int(root.blocks_per_target))
+                        font_size: sp(13)
+                        color: TEXT_COLOR
+                        size_hint_x: None
+                        width: dp(34)
+
+                BoxLayout:
+                    orientation: 'horizontal'
+                    size_hint_y: None
+                    height: dp(30)
+                    spacing: dp(6)
+                    Label:
+                        text: 'Allow mosaics:'
+                        font_size: sp(12)
+                        color: TEXT_COLOR
+                        size_hint_x: None
+                        width: dp(110)
+                        halign: 'left'
+                        text_size: self.size
+                        valign: 'middle'
+                    CheckBox:
+                        active: root.allow_mosaic
+                        size_hint_x: None
+                        width: dp(36)
+                        on_active: root.allow_mosaic = self.active
+                    Label:
+                        text: 'Schedule big targets as multi-pointing mosaics'
+                        font_size: sp(11)
+                        color: DIM_COLOR
+                        halign: 'left'
+                        text_size: self.size
+                        valign: 'middle'
+
+                BoxLayout:
+                    orientation: 'horizontal'
+                    size_hint_y: None
+                    height: dp(34)
+                    spacing: dp(4)
+                    Label:
+                        text: 'Targets:'
+                        font_size: sp(12)
+                        color: TEXT_COLOR
+                        size_hint_x: None
+                        width: dp(70)
+                        halign: 'left'
+                        text_size: self.size
+                        valign: 'middle'
+                    Spinner:
+                        text: ['Messier only', 'Messier + NGC/IC', 'Any from Hunt+24'][int(root.name_class_idx)]
+                        values: ['Messier only', 'Messier + NGC/IC', 'Any from Hunt+24']
+                        font_size: sp(12)
+                        on_text:
+                            opts = ['Messier only', 'Messier + NGC/IC', 'Any from Hunt+24']
+                            root.name_class_idx = opts.index(self.text) if self.text in opts else 2
+
+                BoxLayout:
+                    orientation: 'horizontal'
+                    size_hint_y: None
+                    height: dp(34)
+                    spacing: dp(4)
+                    Label:
+                        text: 'Radius:'
+                        font_size: sp(12)
+                        color: TEXT_COLOR
+                        size_hint_x: None
+                        width: dp(70)
+                        halign: 'left'
+                        text_size: self.size
+                        valign: 'middle'
+                    Spinner:
+                        text: ['Core', 'R-50%', 'Tidal'][int(root.radius_mode_idx)]
+                        values: ['Core', 'R-50%', 'Tidal']
+                        font_size: sp(12)
+                        on_text:
+                            opts = ['Core', 'R-50%', 'Tidal']
+                            root.radius_mode_idx = opts.index(self.text) if self.text in opts else 1
+
+                # --- Constraints (compass) ---
+                Label:
+                    text: 'View constraints (tap a direction to set blocked altitude)'
+                    font_size: sp(13)
+                    bold: True
+                    color: ACCENT_COLOR
+                    size_hint_y: None
+                    height: dp(22)
+                    halign: 'left'
+                    text_size: self.size
+                HorizonCompass:
+                    id: horizon
+                    size_hint_y: None
+                    height: dp(220)
+
+                # --- Build plan button ---
+                Button:
+                    text: 'Build Plan'
+                    size_hint_y: None
+                    height: dp(48)
+                    font_size: sp(15)
+                    bold: True
+                    background_color: ACCENT_COLOR if not root.is_busy else (0.3, 0.3, 0.35, 1)
+                    color: 1, 1, 1, 1
+                    disabled: root.is_busy or root.selected_seestar_ip == ''
+                    on_release: root.do_build_plan()
+
+                # --- Sky map of selection ---
+                Label:
+                    text: 'Selection'
+                    font_size: sp(13)
+                    bold: True
+                    color: ACCENT_COLOR
+                    size_hint_y: None
+                    height: dp(22)
+                    halign: 'left'
+                    text_size: self.size
+                PlanSkyMap:
+                    id: skymap
+                    size_hint_y: None
+                    height: dp(220)
+
+                # --- Status ---
+                Label:
+                    text: root.status
+                    font_size: sp(11)
+                    color: DIM_COLOR
+                    size_hint_y: None
+                    height: dp(18)
+                    halign: 'left'
+                    text_size: self.size
+
+        # --- Execute ---
+        Button:
+            text: 'Execute Plan'
+            size_hint_y: None
+            height: dp(56)
+            font_size: sp(18)
+            bold: True
+            background_color: GREEN_COLOR if root.has_plan and not root.is_busy else (0.3, 0.3, 0.35, 1)
+            color: 1, 1, 1, 1
+            disabled: not root.has_plan or root.is_busy
+            on_release: root.do_execute_plan()

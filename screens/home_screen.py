@@ -65,6 +65,9 @@ class HomeScreen(Screen):
     def go_donate_harddrive(self):
         self.manager.current = "donate_harddrive"
 
+    def go_plan(self):
+        self.manager.current = "plan"
+
     def do_logout(self):
         state = AppState()
         state.clear()

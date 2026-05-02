@@ -15,12 +15,11 @@ dependencies = [
     "astroalign",
     "Pillow",
     "sep>=1.4.0",
-    "seestarpy",
     "crowdsky",
+    "seestarpy>=0.4.0",
 ]
 
 [tool.uv.sources]
-seestarpy = { path = "../seestarpy", editable = true }
 crowdsky = { path = "../CrowdSky/crowdsky", editable = true }
 
 [dependency-groups]
