@@ -65,7 +65,7 @@ class HorizonCompass(Widget):
             # outer ring, alt=90 collapses to centre).
             pts = []
             for i in range(8):
-                az = math.radians(i * 45 - 90)   # N at top
+                az = math.radians(90 - i * 45)   # N at top
                 alt = max(0.0, min(90.0, float(self.altitudes[i])))
                 r = r_outer * (1.0 - alt / 90.0)
                 pts.extend([cx + r * math.cos(az), cy + r * math.sin(az)])
@@ -77,7 +77,7 @@ class HorizonCompass(Widget):
             # Direction tick marks at outer ring
             Color(0.85, 0.85, 0.90, 0.7)
             for i in range(8):
-                az = math.radians(i * 45 - 90)
+                az = math.radians(90 - i * 45)
                 r0 = r_outer * 0.94
                 r1 = r_outer
                 Line(points=[cx + r0 * math.cos(az),
@@ -87,7 +87,7 @@ class HorizonCompass(Widget):
 
             # Direction labels just outside the ring
             for i, name in enumerate(COMPASS_DIRS):
-                az = math.radians(i * 45 - 90)
+                az = math.radians(90 - i * 45)
                 r = r_outer + dp(10)
                 lx = cx + r * math.cos(az)
                 ly = cy + r * math.sin(az)

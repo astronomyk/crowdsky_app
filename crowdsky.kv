@@ -1329,6 +1329,34 @@
                 BoxLayout:
                     orientation: 'horizontal'
                     size_hint_y: None
+                    height: dp(34)
+                    spacing: dp(6)
+                    Label:
+                        text: 'Min altitude:'
+                        font_size: sp(12)
+                        color: TEXT_COLOR
+                        size_hint_x: None
+                        width: dp(110)
+                        halign: 'left'
+                        text_size: self.size
+                        valign: 'middle'
+                    Slider:
+                        id: min_alt_slider
+                        min: 0
+                        max: 80
+                        step: 5
+                        value: root.min_altitude
+                        on_value: root.min_altitude = self.value
+                    Label:
+                        text: str(int(root.min_altitude)) + '°'
+                        font_size: sp(13)
+                        color: TEXT_COLOR
+                        size_hint_x: None
+                        width: dp(34)
+
+                BoxLayout:
+                    orientation: 'horizontal'
+                    size_hint_y: None
                     height: dp(30)
                     spacing: dp(6)
                     Label:

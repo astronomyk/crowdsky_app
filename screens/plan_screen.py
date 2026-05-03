@@ -39,6 +39,7 @@ class PlanScreen(Screen):
     name_class_idx = NumericProperty(2)        # 0=messier 1=ngc 2=any
     radius_mode_idx = NumericProperty(1)       # 0=core 1=r50 2=tidal
     lp_filter = BooleanProperty(False)
+    min_altitude = NumericProperty(30)         # deg above horizon (global floor)
 
     plan_summary = ListProperty([])
     has_plan = BooleanProperty(False)
@@ -191,6 +192,7 @@ class PlanScreen(Screen):
                 name_class=NAME_CLASSES[int(self.name_class_idx)],
                 radius_mode=RADIUS_MODES[int(self.radius_mode_idx)],
                 lp_filter=bool(self.lp_filter),
+                min_altitude_deg=float(self.min_altitude),
             )
             lat, lon = self._location
             plan = build_plan(

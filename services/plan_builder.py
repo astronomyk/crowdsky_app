@@ -80,6 +80,7 @@ class PlanPrefs:
     lp_filter: bool = False
     plan_name: str = "CrowdSky tonight"
     max_targets: int = 12
+    min_altitude_deg: float = 30.0     # global altitude floor (deg above horizon)
 
 
 # ---------------------------------------------------------------------------
@@ -110,6 +111,7 @@ def _is_visible(
     lat_deg: float,
     lon_deg: float,
     mask: HorizonMask,
+    min_alt_deg: float = 0.0,
 ) -> bool:
     try:
         with warnings.catch_warnings():
@@ -117,7 +119,7 @@ def _is_visible(
             alt, az = _altaz_for(cluster, when_utc, lat_deg, lon_deg)
     except Exception:
         return False
-    if alt <= 0:
+    if alt < min_alt_deg:
         return False
     return alt >= mask.min_alt_at(az)
 
@@ -240,7 +242,8 @@ def build_plan(
         for c in candidates:
             if c.name in chosen_names:
                 continue
-            if not _is_visible(c, slot_mid_utc, lat_deg, lon_deg, mask):
+            if not _is_visible(c, slot_mid_utc, lat_deg, lon_deg, mask,
+                                min_alt_deg=prefs.min_altitude_deg):
                 continue
             radius = c.radius_deg(prefs.radius_mode)
             too_big = radius > (fov_min_dim / 2.0)
