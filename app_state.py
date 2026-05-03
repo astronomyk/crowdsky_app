@@ -98,6 +98,10 @@ class AppState:
         self.harddrive_traffic_light = {}
         self.scrub_location_by_path = {}
 
+        # Tonight's plan (populated by PlanScreen, consumed by PlanResultScreen)
+        self.pending_plan = None
+        self.plan_seestar_ip = ""
+
         # Cancellation
         self.cancel_event = threading.Event()
 

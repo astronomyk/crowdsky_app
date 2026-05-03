@@ -12,17 +12,16 @@ from kivy.uix.label import Label
 from kivy.uix.screenmanager import Screen
 from kivy.metrics import dp, sp
 from kivy.properties import (StringProperty, BooleanProperty,
-                             NumericProperty, ListProperty)
+                             NumericProperty)
 
 from ..app_state import AppState
 from ..services.seestar_service import find_seestars
 from ..services.target_scanner import get_device_info
-from ..services.target_catalogue import load_shortlist
 from ..services.target_source import get_default_source
 from ..services.plan_builder import (
     HorizonMask, PlanPrefs, build_plan, fov_for_model,
 )
-from ..services.plan_executor import push_plan, get_seestar_location
+from ..services.plan_executor import get_seestar_location
 
 
 RADIUS_MODES = ["core", "r50", "tidal"]
@@ -41,9 +40,6 @@ class PlanScreen(Screen):
     lp_filter = BooleanProperty(False)
     min_altitude = NumericProperty(30)         # deg above horizon (global floor)
 
-    plan_summary = ListProperty([])
-    has_plan = BooleanProperty(False)
-
     location_text = StringProperty("Location: —")
     fov_text = StringProperty("FOV: —")
 
@@ -52,22 +48,12 @@ class PlanScreen(Screen):
         self._device_info = {}    # {ip: (serial, model)}
         self._location = None     # (lat, lon)
         self._fov = None          # (w, h)
-        self._plan = None         # last build_plan() output
 
     # ------------------------------------------------------------------
     # Lifecycle
     # ------------------------------------------------------------------
 
     def on_enter(self):
-        # Pre-populate candidate skymap
-        try:
-            clusters = load_shortlist()
-            self.ids.skymap.candidates = [
-                {"ra_deg": c.ra_deg, "dec_deg": c.dec_deg, "name": c.name}
-                for c in clusters
-            ]
-        except Exception as exc:
-            self.status = f"Catalogue error: {exc}"
         # Show known seestars if any have been discovered already
         if AppState().available_seestars:
             self._build_seestar_radio_list()
@@ -211,56 +197,19 @@ class PlanScreen(Screen):
 
     def _on_plan_built(self, plan):
         self.is_busy = False
-        self._plan = plan
-        self.plan_summary = list(plan["summary"])
-        self.has_plan = bool(self.plan_summary)
-        self.ids.skymap.selected = [
-            {"name": s["name"],
-             "ra_deg": s["ra_deg"], "dec_deg": s["dec_deg"]}
-            for s in self.plan_summary
-        ]
-        n_panels = sum(s["panels"] for s in self.plan_summary)
-        n_mos = sum(1 for s in self.plan_summary if s["mosaic"])
-        if not self.plan_summary:
-            self.status = "No targets fit the constraints"
-        else:
-            self.status = (f"{len(self.plan_summary)} target(s), "
-                            f"{n_panels} panel(s), {n_mos} mosaic(s)")
+        state = AppState()
+        state.pending_plan = plan
+        state.plan_seestar_ip = self.selected_seestar_ip
+        n_targets = len(plan.get("summary", []))
+        if n_targets == 0:
+            self.status = "No targets fit the constraints — adjust prefs"
+            return
+        self.status = f"{n_targets} target(s) found"
+        self.manager.current = "plan_result"
 
     def _on_plan_error(self, msg):
         self.is_busy = False
         self.status = f"Plan error: {msg}"
-
-    # ------------------------------------------------------------------
-    # Execute
-    # ------------------------------------------------------------------
-
-    def do_execute_plan(self):
-        if not self._plan or not self.selected_seestar_ip:
-            return
-        self.is_busy = True
-        self.status = "Pushing plan to Seestar..."
-        threading.Thread(target=self._execute_thread, daemon=True).start()
-
-    def _execute_thread(self):
-        try:
-            resp = push_plan(self.selected_seestar_ip, self._plan)
-            Clock.schedule_once(lambda dt: self._on_executed(resp))
-        except Exception as exc:
-            msg = str(exc)
-            Clock.schedule_once(lambda dt: self._on_execute_error(msg))
-
-    def _on_executed(self, resp):
-        self.is_busy = False
-        code = resp.get("code") if isinstance(resp, dict) else None
-        if code == 0:
-            self.status = "Plan accepted by Seestar"
-        else:
-            self.status = f"Seestar response: {resp}"
-
-    def _on_execute_error(self, msg):
-        self.is_busy = False
-        self.status = f"Push error: {msg}"
 
     def go_back(self):
         self.manager.current = "home"

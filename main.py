@@ -60,6 +60,7 @@ from crowdsky_app.screens.skymap_screen import SkyMapScreen
 from crowdsky_app.screens.gallery_screen import GalleryScreen
 from crowdsky_app.screens.donate_seestar_screen import DonateSeestarScreen
 from crowdsky_app.screens.plan_screen import PlanScreen
+from crowdsky_app.screens.plan_result_screen import PlanResultScreen
 from crowdsky_app.screens.status_screen import StatusScreen
 
 if not _IS_ANDROID:
@@ -96,6 +97,7 @@ class CrowdSkyApp(App):
         if not _IS_ANDROID:
             sm.add_widget(DonateHarddriveScreen(name="donate_harddrive"))
         sm.add_widget(PlanScreen(name="plan"))
+        sm.add_widget(PlanResultScreen(name="plan_result"))
         sm.add_widget(StatusScreen(name="status"))
         return sm
 

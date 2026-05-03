@@ -1440,33 +1440,6 @@
                     size_hint_y: None
                     height: dp(220)
 
-                # --- Build plan button ---
-                Button:
-                    text: 'Build Plan'
-                    size_hint_y: None
-                    height: dp(48)
-                    font_size: sp(15)
-                    bold: True
-                    background_color: ACCENT_COLOR if not root.is_busy else (0.3, 0.3, 0.35, 1)
-                    color: 1, 1, 1, 1
-                    disabled: root.is_busy or root.selected_seestar_ip == ''
-                    on_release: root.do_build_plan()
-
-                # --- Sky map of selection ---
-                Label:
-                    text: 'Selection'
-                    font_size: sp(13)
-                    bold: True
-                    color: ACCENT_COLOR
-                    size_hint_y: None
-                    height: dp(22)
-                    halign: 'left'
-                    text_size: self.size
-                PlanSkyMap:
-                    id: skymap
-                    size_hint_y: None
-                    height: dp(220)
-
                 # --- Status ---
                 Label:
                     text: root.status
@@ -1477,14 +1450,111 @@
                     halign: 'left'
                     text_size: self.size
 
-        # --- Execute ---
+        # --- Build plan button ---
+        Button:
+            text: 'Build Plan'
+            size_hint_y: None
+            height: dp(56)
+            font_size: sp(18)
+            bold: True
+            background_color: ACCENT_COLOR if not root.is_busy and root.selected_seestar_ip != '' else (0.3, 0.3, 0.35, 1)
+            color: 1, 1, 1, 1
+            disabled: root.is_busy or root.selected_seestar_ip == ''
+            on_release: root.do_build_plan()
+
+# --- PlanResultScreen ---
+
+<PlanResultScreen>:
+    name: 'plan_result'
+
+    BoxLayout:
+        orientation: 'vertical'
+        padding: dp(12)
+        spacing: dp(8)
+        canvas.before:
+            Color:
+                rgba: BG_COLOR
+            Rectangle:
+                pos: self.pos
+                size: self.size
+
+        # Header
+        BoxLayout:
+            orientation: 'horizontal'
+            size_hint_y: None
+            height: dp(40)
+            Button:
+                text: '< Back'
+                size_hint_x: None
+                width: dp(72)
+                font_size: sp(13)
+                background_color: 0.3, 0.3, 0.35, 1
+                color: 1, 1, 1, 1
+                on_release: root.go_back()
+            Label:
+                text: 'Plan Preview'
+                font_size: sp(17)
+                bold: True
+                color: ACCENT_COLOR
+                halign: 'center'
+                text_size: self.size
+                valign: 'middle'
+
+        # Headline
+        Label:
+            text: root.headline
+            font_size: sp(12)
+            color: TEXT_COLOR
+            size_hint_y: None
+            height: dp(20)
+            halign: 'left'
+            text_size: self.size
+
+        # Sky map
+        PlanSkyMap:
+            id: skymap
+            size_hint_y: None
+            height: dp(240)
+
+        # Summary card
+        BoxLayout:
+            orientation: 'vertical'
+            size_hint_y: 1
+            canvas.before:
+                Color:
+                    rgba: CARD_COLOR
+                RoundedRectangle:
+                    pos: self.pos
+                    size: self.size
+                    radius: [dp(6)]
+            padding: dp(6)
+            ScrollView:
+                do_scroll_x: False
+                BoxLayout:
+                    id: summary_list
+                    orientation: 'vertical'
+                    size_hint_y: None
+                    height: self.minimum_height
+                    spacing: dp(2)
+
+        # Status line
+        Label:
+            text: root.status
+            font_size: sp(11)
+            color: DIM_COLOR
+            size_hint_y: None
+            height: dp(18)
+            halign: 'left'
+            text_size: self.size
+
+        # Execute
         Button:
             text: 'Execute Plan'
             size_hint_y: None
             height: dp(56)
             font_size: sp(18)
             bold: True
-            background_color: GREEN_COLOR if root.has_plan and not root.is_busy else (0.3, 0.3, 0.35, 1)
+            background_color: GREEN_COLOR if not root.is_busy and len(root.plan_summary) > 0 else (0.3, 0.3, 0.35, 1)
             color: 1, 1, 1, 1
-            disabled: not root.has_plan or root.is_busy
-            on_release: root.do_execute_plan()
+            disabled: root.is_busy or len(root.plan_summary) == 0
+            on_release: root.do_execute()

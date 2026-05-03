@@ -103,6 +103,7 @@ a = Analysis(
         'crowdsky_app.screens.donate_seestar_screen',
         'crowdsky_app.screens.donate_harddrive_screen',
         'crowdsky_app.screens.plan_screen',
+        'crowdsky_app.screens.plan_result_screen',
         'crowdsky_app.screens.status_screen',
         'crowdsky_app.services',
         'crowdsky_app.services.crowdsky_client',
