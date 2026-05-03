@@ -28,14 +28,24 @@ from .target_source import TargetSource, get_default_source
 COMPASS_DIRS = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"]
 
 
-# Seestar FOV per known model (degrees, RA-direction × Dec-direction).
-# These are coarse — refine when concrete numbers are confirmed in seestarpy.
+# Seestar FOV per known model — (RA-direction, Dec-direction) in degrees.
+# Convention matches seestarpy.plan: first dim = RA on sky (short pixel axis),
+# second dim = Dec on sky (long pixel axis).
+#
+# Computed from sensor dimensions × pixel scale:
+#   S50:     1920 × 1080 @ 2.4"/px  →  0.72° × 1.28° (rounded to seestarpy's
+#                                       canonical 0.75 × 1.33)
+#   S30 Pro: 2160 × 3840 @ 4.0"/px  →  2.40° × 4.27°
+#   S30:     1024 × 1980 @ 4.0"/px  →  1.14° × 2.20°
+#
+# S30 Pro must come before S30 in iteration order so the substring match
+# below picks the more specific model first.
 SEESTAR_FOV = {
-    "Seestar S50":     (1.27, 0.71),
-    "Seestar S30 Pro": (2.27, 1.27),
-    # fallback: S50 numbers are conservative
+    "Seestar S50":     (0.75, 1.33),
+    "Seestar S30 Pro": (2.40, 4.27),
+    "Seestar S30":     (1.14, 2.20),
 }
-DEFAULT_FOV = (1.27, 0.71)
+DEFAULT_FOV = (0.75, 1.33)
 
 
 def fov_for_model(model: str) -> tuple[float, float]:
