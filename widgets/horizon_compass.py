@@ -37,17 +37,28 @@ class HorizonCompass(Widget):
         super().__init__(**kwargs)
         self.bind(size=self._redraw, pos=self._redraw,
                   altitudes=self._redraw)
-        # Defer the first paint to the next frame so layout has had a
-        # chance to position us — otherwise we draw at the default
-        # (0, 0, 100, 100) and only re-paint on the next size/pos event,
-        # which doesn't always fire when our final size matches our
-        # initial size.
-        Clock.schedule_once(lambda *_: self._redraw(), 0)
+        # Inside a ScrollView the parent layout sometimes finalises our
+        # width across multiple frames, and not every intermediate value
+        # fires the size bind reliably.  Retry the initial paint until
+        # we see a credible widget width.
+        self._initial_attempts = 0
+        Clock.schedule_once(self._try_initial_paint, 0)
+
+    def _try_initial_paint(self, _dt):
+        self._initial_attempts += 1
+        if self.width < dp(150) and self._initial_attempts < 30:
+            Clock.schedule_once(self._try_initial_paint, 0)
+            return
+        self._redraw()
 
     def _redraw(self, *_):
         self.canvas.clear()
         if self.width <= 0 or self.height <= 0:
             return
+        # Ensure Kivy actually flushes the new instructions in the next
+        # draw cycle — without this, intermediate canvas state from
+        # earlier (pre-layout) paints can stick around on screen.
+        self.canvas.ask_update()
 
         cx = self.center_x
         cy = self.center_y
@@ -66,19 +77,19 @@ class HorizonCompass(Widget):
             Color(0.55, 0.55, 0.60, 0.55)
             Line(circle=(cx, cy, r_outer), width=1.1)
 
-            # 8-direction blocking polygon — radius for each direction
-            # is proportional to (90 - alt)/90 (so alt=0 reaches the
-            # outer ring, alt=90 collapses to centre).
+            # 8-direction blocking polygon — vertex radius shrinks as
+            # altitude increases.  Inset r_max slightly so an alt=0
+            # vertex never sits exactly on the outer ring (where the
+            # two lines overlap and visually cancel each other out).
+            r_max = r_outer - dp(3)
             pts = []
             for i in range(8):
                 az = math.radians(90 - i * 45)   # N at top
                 alt = max(0.0, min(90.0, float(self.altitudes[i])))
-                r = r_outer * (1.0 - alt / 90.0)
+                r = r_max * (1.0 - alt / 90.0)
                 pts.extend([cx + r * math.cos(az), cy + r * math.sin(az)])
-            # close
-            pts.extend(pts[:2])
-            Color(0.85, 0.20, 0.20, 0.35)
-            Line(points=pts, width=1.4, close=True)
+            Color(0.95, 0.30, 0.25, 0.85)
+            Line(points=pts, width=1.6, close=True)
 
             # Direction tick marks at outer ring
             Color(0.85, 0.85, 0.90, 0.7)
