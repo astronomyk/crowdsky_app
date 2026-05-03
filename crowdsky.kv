@@ -1304,7 +1304,7 @@
                     height: dp(34)
                     spacing: dp(6)
                     Label:
-                        text: 'Blocks/target:'
+                        text: 'Blocks/target:\n[1 Block = 15 min]'
                         font_size: sp(12)
                         color: TEXT_COLOR
                         size_hint_x: None
@@ -1332,7 +1332,7 @@
                     height: dp(34)
                     spacing: dp(6)
                     Label:
-                        text: 'Min altitude:'
+                        text: 'Min altitude:\n[Above Horizon]'
                         font_size: sp(12)
                         color: TEXT_COLOR
                         size_hint_x: None
@@ -1371,10 +1371,22 @@
                     height: dp(22)
                     halign: 'left'
                     text_size: self.size
-                HorizonCompass:
-                    id: horizon
+                # Wrap the compass in an AnchorLayout so it sits as a
+                # fixed square in the centre of the row instead of
+                # stretching to the parent's width.  Stretching meant
+                # `self.width` went through several intermediate values
+                # during ScrollView's layout pass and the canvas got
+                # baked at the wrong width.  A fixed size sidesteps
+                # that entirely.
+                AnchorLayout:
                     size_hint_y: None
-                    height: dp(220)
+                    height: dp(240)
+                    anchor_x: 'center'
+                    anchor_y: 'center'
+                    HorizonCompass:
+                        id: horizon
+                        size_hint: None, None
+                        size: dp(240), dp(240)
 
                 # --- Status ---
                 Label:
