@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import threading
+from datetime import datetime
 
 from kivy.clock import Clock
 from kivy.uix.boxlayout import BoxLayout
@@ -15,6 +16,7 @@ from kivy.properties import (StringProperty, BooleanProperty,
 from ..app_state import AppState
 from ..services.target_catalogue import load_shortlist
 from ..services.plan_executor import push_plan
+from ..services.night_window import compute_night_window
 
 
 def _fmt_time(start_min: int) -> str:
@@ -89,9 +91,57 @@ class PlanResultScreen(Screen):
             for s in summary
         ]
 
+        # Reset night-overlay until the worker finishes
+        self.ids.skymap.visible_cells = []
+        self.ids.skymap.meridian_lines = []
+
         # Summary card rows
         self._fill_summary(summary)
-        self.status = ""
+        self.status = "Computing visibility window..."
+
+        # Night-window calc is heavy (astropy AltAz on a grid) — do it
+        # off the UI thread.
+        threading.Thread(
+            target=self._compute_overlay_thread,
+            args=(plan,), daemon=True).start()
+
+    def _compute_overlay_thread(self, plan):
+        try:
+            lat = float(plan.get("lat", 0.0))
+            lon = float(plan.get("lon", 0.0))
+            start_local_iso = plan.get("start_local")
+            ref_local = (datetime.fromisoformat(start_local_iso)
+                          if start_local_iso else datetime.now())
+            nw = compute_night_window(lat, lon, ref_local)
+        except Exception as exc:
+            msg = str(exc)
+            Clock.schedule_once(
+                lambda dt: self._on_overlay_error(msg))
+            return
+        Clock.schedule_once(lambda dt: self._on_overlay_ready(nw))
+
+    def _on_overlay_ready(self, nw):
+        if nw is None:
+            self.status = "Sun never sets/rises in 24 h — overlay skipped"
+            return
+        # Visible-cells tint
+        self.ids.skymap.visible_cells = list(nw.visible_cells)
+        # Three vertical zenith-RA markers
+        self.ids.skymap.meridian_lines = [
+            {"ra_deg": nw.lst_sunset_deg, "label": "set",
+             "color": (1.0, 0.55, 0.20, 0.85)},
+            {"ra_deg": nw.lst_midnight_deg, "label": "mid",
+             "color": (0.55, 0.65, 1.0, 0.85)},
+            {"ra_deg": nw.lst_sunrise_deg, "label": "rise",
+             "color": (1.0, 0.85, 0.30, 0.85)},
+        ]
+        self.status = (
+            f"Set {nw.sunset_local.strftime('%H:%M')}  ·  "
+            f"Mid {nw.midnight_local.strftime('%H:%M')}  ·  "
+            f"Rise {nw.sunrise_local.strftime('%H:%M')}")
+
+    def _on_overlay_error(self, msg):
+        self.status = f"Overlay error: {msg}"
 
     def _fill_summary(self, summary):
         container = self.ids.summary_list
