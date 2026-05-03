@@ -112,6 +112,12 @@ class PlanPrefs:
     plan_name: str = "CrowdSky tonight"
     min_altitude_deg: float = 30.0     # global altitude floor (deg above horizon)
     top_k_pool: int = 10               # how many meridian-closest to pick from
+    # Observing window: minutes since the local midnight at the start of
+    # the planning night.  ``None`` means "use sunset / sunrise from the
+    # night-window calc".  Otherwise the slot loop is clipped to
+    # ``[window_start_min, window_end_min]``.
+    window_start_min: int | None = None
+    window_end_min: int | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -214,6 +220,16 @@ def build_plan(
     if night_end <= anchor:
         night_end = anchor + timedelta(hours=8)
 
+    # 2b. Clip to the user's observing window if specified.
+    if prefs.window_start_min is not None:
+        user_start = midnight + timedelta(minutes=prefs.window_start_min)
+        if user_start > anchor:
+            anchor = user_start
+    if prefs.window_end_min is not None:
+        user_end = midnight + timedelta(minutes=prefs.window_end_min)
+        if user_end < night_end:
+            night_end = user_end
+
     # 3. Slot count.
     duration_min = max(15, int(prefs.blocks_per_target) * 15)
     night_min = (night_end - anchor).total_seconds() / 60.0
@@ -299,6 +315,9 @@ def build_plan(
             "az_deg": float(az_deg[chosen_idx]),
             "ha_deg": float(ha_deg[chosen_idx]),
             "radius_deg": pick.radius_deg(prefs.radius_mode),
+            "rc_deg": pick.rc_deg,
+            "r50_deg": pick.r50_deg,
+            "rt_deg": pick.rt_deg,
             "dist_pc": pick.dist_pc,
             "n_stars": pick.n_stars,
         })

@@ -22,6 +22,7 @@ from ..services.plan_builder import (
     HorizonMask, PlanPrefs, build_plan, fov_for_model,
 )
 from ..services.plan_executor import get_seestar_location
+from ..services.night_window import compute_horizons
 from ..services.prefs_store import (
     load_compass_altitudes, save_compass_altitudes)
 
@@ -40,6 +41,13 @@ class PlanScreen(Screen):
     radius_mode_idx = NumericProperty(1)       # 0=core 1=r50 2=tidal
     lp_filter = BooleanProperty(False)
     min_altitude = NumericProperty(30)         # deg above horizon (global floor)
+    # Observing window: minutes-since-local-midnight (start day).
+    # Default sunset → sunrise will be set when a Seestar is selected
+    # and we know lat/lon; until then these are sensible fallbacks.
+    window_start_min = NumericProperty(20 * 60)        # 20:00
+    window_end_min = NumericProperty(24 * 60 + 5 * 60)  # 05:00 next day
+    window_start_text = StringProperty("20:00")
+    window_end_text = StringProperty("05:00")
 
     location_text = StringProperty("Location: —")
     fov_text = StringProperty("FOV: —")
@@ -165,6 +173,42 @@ class PlanScreen(Screen):
         self._location = (lat, lon)
         self.location_text = f"Location: {lat:+.3f}°, {lon:+.3f}°"
         self.status = "Ready to plan"
+        # Reset the observing-window sliders to tonight's sunset/sunrise.
+        threading.Thread(target=self._update_window_thread,
+                         args=(lat, lon), daemon=True).start()
+
+    def _update_window_thread(self, lat, lon):
+        try:
+            horizons = compute_horizons(lat, lon, datetime.now())
+        except Exception:
+            horizons = None
+        if horizons is None:
+            return
+        sunset, _, sunrise = horizons
+        midnight = sunset.replace(hour=0, minute=0, second=0,
+                                   microsecond=0)
+        sunset_min = (int((sunset - midnight).total_seconds() // 60)
+                       // 15) * 15
+        sunrise_min = -(-int((sunrise - midnight).total_seconds() // 60)
+                         // 15) * 15  # round up
+        Clock.schedule_once(lambda dt: self._apply_window(
+            sunset_min, sunrise_min))
+
+    def _apply_window(self, start_min, end_min):
+        self.window_start_min = start_min
+        self.window_end_min = end_min
+
+    @staticmethod
+    def _fmt_minute_of_day(m: int) -> str:
+        m = int(m)
+        h = (m // 60) % 24
+        return f"{h:02d}:{m % 60:02d}"
+
+    def on_window_start_min(self, _instance, value):
+        self.window_start_text = self._fmt_minute_of_day(value)
+
+    def on_window_end_min(self, _instance, value):
+        self.window_end_text = self._fmt_minute_of_day(value)
 
     # ------------------------------------------------------------------
     # Build plan
@@ -190,6 +234,8 @@ class PlanScreen(Screen):
                 radius_mode=RADIUS_MODES[int(self.radius_mode_idx)],
                 lp_filter=bool(self.lp_filter),
                 min_altitude_deg=float(self.min_altitude),
+                window_start_min=int(self.window_start_min),
+                window_end_min=int(self.window_end_min),
             )
             lat, lon = self._location
             plan = build_plan(

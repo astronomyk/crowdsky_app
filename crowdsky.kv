@@ -1354,6 +1354,77 @@
                         size_hint_x: None
                         width: dp(34)
 
+                # --- Observing window (start / end clock times) ---
+                Label:
+                    text: 'Observing window'
+                    font_size: sp(12)
+                    color: TEXT_COLOR
+                    size_hint_y: None
+                    height: dp(20)
+                    halign: 'left'
+                    text_size: self.size
+                    valign: 'middle'
+                BoxLayout:
+                    orientation: 'horizontal'
+                    size_hint_y: None
+                    height: dp(30)
+                    spacing: dp(6)
+                    Label:
+                        text: 'Start'
+                        font_size: sp(12)
+                        color: DIM_COLOR
+                        size_hint_x: None
+                        width: dp(36)
+                        halign: 'right'
+                        text_size: self.size
+                        valign: 'middle'
+                    Slider:
+                        id: window_start_slider
+                        min: 16 * 60
+                        max: root.window_end_min
+                        step: 15
+                        value: root.window_start_min
+                        on_value: root.window_start_min = self.value
+                    Label:
+                        text: root.window_start_text
+                        font_size: sp(12)
+                        color: TEXT_COLOR
+                        size_hint_x: None
+                        width: dp(50)
+                        halign: 'right'
+                        text_size: self.size
+                        valign: 'middle'
+                BoxLayout:
+                    orientation: 'horizontal'
+                    size_hint_y: None
+                    height: dp(30)
+                    spacing: dp(6)
+                    Label:
+                        text: 'End'
+                        font_size: sp(12)
+                        color: DIM_COLOR
+                        size_hint_x: None
+                        width: dp(36)
+                        halign: 'right'
+                        text_size: self.size
+                        valign: 'middle'
+                    Slider:
+                        id: window_end_slider
+                        min: root.window_start_min
+                        max: 33 * 60
+                        step: 15
+                        value: root.window_end_min
+                        on_value: root.window_end_min = self.value
+                    Label:
+                        text: root.window_end_text
+                        font_size: sp(12)
+                        color: TEXT_COLOR
+                        size_hint_x: None
+                        width: dp(50)
+                        halign: 'right'
+                        text_size: self.size
+                        valign: 'middle'
+
                 # NOTE: the "Targets" (Messier/NGC/Any) and "Radius"
                 # (Core/R-50%/Tidal) Spinner rows have been hidden from
                 # the UI for now.  The properties on PlanScreen still

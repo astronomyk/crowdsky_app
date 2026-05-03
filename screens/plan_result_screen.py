@@ -167,7 +167,7 @@ class PlanResultScreen(Screen):
             return
         for s in summary:
             row = BoxLayout(orientation="vertical", size_hint_y=None,
-                            height=dp(72), padding=[dp(8), dp(4)],
+                            height=dp(90), padding=[dp(8), dp(4)],
                             spacing=dp(2))
             top = BoxLayout(orientation="horizontal", size_hint_y=None,
                             height=dp(20))
@@ -210,9 +210,27 @@ class PlanResultScreen(Screen):
                 height=dp(18))
             altaz_lbl.bind(size=altaz_lbl.setter("text_size"))
 
+            cluster_parts = []
+            rc = s.get("rc_deg")
+            r50 = s.get("r50_deg")
+            dist = s.get("dist_pc")
+            if rc is not None and rc > 0:
+                cluster_parts.append(f"R_core {float(rc):.2f}°")
+            if r50 is not None and r50 > 0:
+                cluster_parts.append(f"R50 {float(r50):.2f}°")
+            if dist is not None and dist > 0:
+                cluster_parts.append(f"{float(dist):.0f} pc")
+            cluster_lbl = Label(
+                text="   ·   ".join(cluster_parts),
+                font_size=sp(11), color=(0.85, 0.78, 0.40, 1),
+                halign="left", valign="middle", size_hint_y=None,
+                height=dp(18))
+            cluster_lbl.bind(size=cluster_lbl.setter("text_size"))
+
             row.add_widget(top)
             row.add_widget(coord_lbl)
             row.add_widget(altaz_lbl)
+            row.add_widget(cluster_lbl)
             container.add_widget(row)
 
     # ------------------------------------------------------------------
