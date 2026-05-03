@@ -1357,33 +1357,6 @@
                 BoxLayout:
                     orientation: 'horizontal'
                     size_hint_y: None
-                    height: dp(30)
-                    spacing: dp(6)
-                    Label:
-                        text: 'Allow mosaics:'
-                        font_size: sp(12)
-                        color: TEXT_COLOR
-                        size_hint_x: None
-                        width: dp(110)
-                        halign: 'left'
-                        text_size: self.size
-                        valign: 'middle'
-                    CheckBox:
-                        active: root.allow_mosaic
-                        size_hint_x: None
-                        width: dp(36)
-                        on_active: root.allow_mosaic = self.active
-                    Label:
-                        text: 'Schedule big targets as multi-pointing mosaics'
-                        font_size: sp(11)
-                        color: DIM_COLOR
-                        halign: 'left'
-                        text_size: self.size
-                        valign: 'middle'
-
-                BoxLayout:
-                    orientation: 'horizontal'
-                    size_hint_y: None
                     height: dp(34)
                     spacing: dp(4)
                     Label:

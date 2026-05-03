@@ -34,7 +34,6 @@ class PlanScreen(Screen):
     selected_seestar_ip = StringProperty("")
 
     blocks_per_target = NumericProperty(4)
-    allow_mosaic = BooleanProperty(False)
     name_class_idx = NumericProperty(2)        # 0=messier 1=ngc 2=any
     radius_mode_idx = NumericProperty(1)       # 0=core 1=r50 2=tidal
     lp_filter = BooleanProperty(False)
@@ -174,7 +173,6 @@ class PlanScreen(Screen):
             mask = HorizonMask(alts=list(self.ids.horizon.altitudes))
             prefs = PlanPrefs(
                 blocks_per_target=int(self.blocks_per_target),
-                allow_mosaic=bool(self.allow_mosaic),
                 name_class=NAME_CLASSES[int(self.name_class_idx)],
                 radius_mode=RADIUS_MODES[int(self.radius_mode_idx)],
                 lp_filter=bool(self.lp_filter),

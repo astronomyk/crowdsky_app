@@ -1,27 +1,39 @@
 """Build a tonight's-observation plan from prefs + constraints.
 
-The output dict matches the format expected by
-:func:`seestarpy.plan.set_view_plan`, plus a ``summary`` list for the
-UI and bookkeeping fields (lat, lon, start time).
+Algorithm (v2 — meridian-priority):
 
-The selection step is intentionally simple — a random pick from
-candidates that satisfy visibility, name class, and FOV constraints —
-because the long-term plan is to swap in a CrowdSky-driven scheduler.
-The :class:`TargetSource` indirection in ``target_source.py`` lets that
-swap happen without touching this module.
+1. The night runs from anchor (now, rounded up to the next 15-min mark)
+   to sunrise, computed via :func:`night_window.compute_horizons`.
+2. The night is divided into fixed-length slots of
+   ``prefs.blocks_per_target × 15`` minutes — that's how many targets
+   we'll schedule.
+3. For each slot:
+     a. Compute LST at the slot's mid-time.
+     b. Compute alt + |HA| for every candidate (closed-form, vectorised).
+     c. Keep candidates that pass visibility (min_altitude_deg + the
+        8-direction horizon mask) and that haven't been scheduled yet.
+     d. Sort the survivors by |HA| ascending — i.e. closest to the
+        meridian at slot-midtime first.
+     e. Random-pick from the top 10.
+4. If a slot has no visible survivors, leave it empty and move on.
+
+The output matches :func:`seestarpy.plan.set_view_plan`, plus a
+``summary`` list for the UI.  Mosaic packing has been removed for now
+(targets larger than the FOV are scheduled as a single centre pointing).
 """
 
 from __future__ import annotations
 
 import math
 import random
-import warnings
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import Iterable
+
+import numpy as np
 
 from .target_catalogue import Cluster, filter_by_name_class
 from .target_source import TargetSource, get_default_source
+from .night_window import compute_horizons
 
 
 # Compass labels used by HorizonCompass.  Index 0 = N, going clockwise.
@@ -80,65 +92,78 @@ class HorizonMask:
         frac = idx - math.floor(idx)
         return self.alts[i0] * (1 - frac) + self.alts[i1] * frac
 
+    def min_alt_array(self, az_deg_array: np.ndarray) -> np.ndarray:
+        """Vectorised :meth:`min_alt_at` for a 1-D array of azimuths."""
+        az = np.mod(az_deg_array, 360.0)
+        idx = az / 45.0
+        i0 = np.floor(idx).astype(int) % 8
+        i1 = (i0 + 1) % 8
+        frac = idx - np.floor(idx)
+        alts = np.asarray(self.alts, dtype=float)
+        return alts[i0] * (1.0 - frac) + alts[i1] * frac
+
 
 @dataclass
 class PlanPrefs:
     blocks_per_target: int = 4         # 1 block = 15 min
-    allow_mosaic: bool = False
     name_class: str = "any"            # 'messier' | 'ngc' | 'any'
-    radius_mode: str = "r50"           # 'core' | 'r50' | 'tidal'
+    radius_mode: str = "r50"           # 'core' | 'r50' | 'tidal' (display only)
     lp_filter: bool = False
     plan_name: str = "CrowdSky tonight"
-    max_targets: int = 12
     min_altitude_deg: float = 30.0     # global altitude floor (deg above horizon)
+    top_k_pool: int = 10               # how many meridian-closest to pick from
 
 
 # ---------------------------------------------------------------------------
-# Visibility — Alt/Az computation via astropy
+# Vectorised alt/az from spherical trig — much faster than astropy for our
+# use case and accurate to << 0.1° (refraction etc. don't matter for a
+# "is this above 30°?" check).
 # ---------------------------------------------------------------------------
 
-def _altaz_for(
-    cluster: Cluster,
-    when_utc: datetime,
+def _altaz_arrays(
+    ra_deg: np.ndarray,
+    dec_deg: np.ndarray,
     lat_deg: float,
-    lon_deg: float,
-) -> tuple[float, float]:
-    """Compute (alt_deg, az_deg) for *cluster* at the given UTC time."""
-    from astropy.coordinates import EarthLocation, SkyCoord, AltAz
+    lst_deg: float,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Return ``(alt_deg, az_deg, ha_deg)`` for arrays of RA/Dec.
+
+    ``ha_deg`` is wrapped to ``[-180, +180]`` so that ``|ha|`` measures
+    distance to the meridian directly.
+    """
+    ha_deg = (lst_deg - ra_deg + 180.0) % 360.0 - 180.0
+    sin_lat = math.sin(math.radians(lat_deg))
+    cos_lat = math.cos(math.radians(lat_deg))
+    dec_rad = np.radians(dec_deg)
+    ha_rad = np.radians(ha_deg)
+    sin_dec = np.sin(dec_rad)
+    cos_dec = np.cos(dec_rad)
+    sin_alt = sin_lat * sin_dec + cos_lat * cos_dec * np.cos(ha_rad)
+    sin_alt = np.clip(sin_alt, -1.0, 1.0)
+    alt_deg = np.degrees(np.arcsin(sin_alt))
+    cos_alt = np.cos(np.radians(alt_deg))
+    safe_cos_alt = np.where(np.abs(cos_alt) < 1e-9, 1e-9, cos_alt)
+    sin_az = -cos_dec * np.sin(ha_rad) / safe_cos_alt
+    cos_az = ((sin_dec - sin_lat * sin_alt)
+              / (cos_lat * safe_cos_alt))
+    az_deg = np.degrees(np.arctan2(sin_az, cos_az)) % 360.0
+    return alt_deg, az_deg, ha_deg
+
+
+def _lst_deg(when_utc: datetime, lon_deg: float) -> float:
+    """Apparent local sidereal time in degrees, via astropy."""
     from astropy.time import Time
     import astropy.units as u
-
-    loc = EarthLocation(lat=lat_deg * u.deg, lon=lon_deg * u.deg)
-    obstime = Time(when_utc)
-    target = SkyCoord(ra=cluster.ra_deg * u.deg, dec=cluster.dec_deg * u.deg)
-    altaz = target.transform_to(AltAz(obstime=obstime, location=loc))
-    return float(altaz.alt.deg), float(altaz.az.deg)
-
-
-def _is_visible(
-    cluster: Cluster,
-    when_utc: datetime,
-    lat_deg: float,
-    lon_deg: float,
-    mask: HorizonMask,
-    min_alt_deg: float = 0.0,
-) -> bool:
-    try:
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            alt, az = _altaz_for(cluster, when_utc, lat_deg, lon_deg)
-    except Exception:
-        return False
-    if alt < min_alt_deg:
-        return False
-    return alt >= mask.min_alt_at(az)
+    return float(Time(when_utc).sidereal_time(
+        "apparent", longitude=lon_deg * u.deg).deg)
 
 
 # ---------------------------------------------------------------------------
 # Plan assembly
 # ---------------------------------------------------------------------------
 
-def _minutes_since_local_midnight(dt_local: datetime, ref_midnight: datetime) -> int:
+def _minutes_since_local_midnight(dt_local: datetime,
+                                  ref_midnight: datetime) -> int:
     delta = dt_local - ref_midnight
     return int(delta.total_seconds() // 60)
 
@@ -149,48 +174,6 @@ def _new_target_id(used: set[int]) -> int:
         if tid not in used:
             used.add(tid)
             return tid
-
-
-def _mosaic_panels(
-    cluster: Cluster,
-    radius_deg: float,
-    fov_w_deg: float,
-    fov_h_deg: float,
-    duration_min: int,
-    start_min: int,
-    used_ids: set[int],
-    lp_filter: bool,
-) -> list[dict]:
-    """Build seestarpy-format target dicts for a mosaic over a cluster."""
-    width = max(2 * radius_deg, fov_w_deg)
-    height = max(2 * radius_deg, fov_h_deg)
-    delta_ra = fov_w_deg * 0.85         # 15% overlap
-    delta_dec = fov_h_deg * 0.85
-
-    # Defer to seestarpy's mosaic planner so we share its boustrophedon
-    # logic and cos(dec) correction.
-    from seestarpy.plan import create_mosaic_plan
-    sub = create_mosaic_plan(
-        plan_name=cluster.name,
-        center_ra=cluster.ra_hours,
-        center_dec=cluster.dec_deg,
-        width=width,
-        height=height,
-        delta_ra=delta_ra,
-        delta_dec=delta_dec,
-        t_total=duration_min,
-        start_min=start_min,
-        lp_filter=lp_filter,
-        target_name_prefix=cluster.name.replace(" ", "_"),
-    )
-    panels = []
-    for t in sub["list"]:
-        # Replace the random ids from create_mosaic_plan with our own
-        # bookkeeping to keep the global pool unique.
-        t = dict(t)
-        t["target_id"] = _new_target_id(used_ids)
-        panels.append(t)
-    return panels
 
 
 def build_plan(
@@ -206,18 +189,14 @@ def build_plan(
 ) -> dict:
     """Compose a plan dict + summary.
 
-    The schedule starts at *start_local* (rounded up to the next 15-min
-    boundary) and continues until either ``prefs.max_targets`` are
-    scheduled or 6 hours of clock time have been booked.  Targets are
-    drawn at random from candidates that pass visibility + name-class
-    filters at the midpoint of their slot.
+    See module docstring for the algorithm.  Returns a plan dict (which
+    may have an empty ``list`` if no candidates were visible at any
+    slot during the night).
     """
     src = source or get_default_source()
     rng = rng or random.Random()
-    fov_w, fov_h = fov_deg
-    fov_min_dim = min(fov_w, fov_h)
 
-    # Round start up to next 15-min boundary so durations align with chunk grid.
+    # 1. Anchor on the next 15-min boundary.
     minute_block = (start_local.minute // 15 + 1) * 15
     if minute_block >= 60:
         anchor = start_local.replace(
@@ -225,80 +204,88 @@ def build_plan(
     else:
         anchor = start_local.replace(
             minute=minute_block, second=0, microsecond=0)
-
     midnight = anchor.replace(hour=0, minute=0, second=0, microsecond=0)
 
-    candidates = list(filter_by_name_class(src.candidates(), prefs.name_class))
-    rng.shuffle(candidates)
+    # 2. Find sunrise — the night ends there.  Fall back to anchor + 8h
+    # if astropy is unavailable or we're at a polar latitude.
+    horizons = compute_horizons(lat_deg, lon_deg, anchor)
+    night_end = (horizons[2] if horizons is not None
+                 else anchor + timedelta(hours=8))
+    if night_end <= anchor:
+        night_end = anchor + timedelta(hours=8)
 
-    duration_min = prefs.blocks_per_target * 15
+    # 3. Slot count.
+    duration_min = max(15, int(prefs.blocks_per_target) * 15)
+    night_min = (night_end - anchor).total_seconds() / 60.0
+    n_slots = int(night_min // duration_min)
+
+    # 4. Candidate pool.
+    candidates = list(filter_by_name_class(src.candidates(),
+                                           prefs.name_class))
+
+    plan: dict = {
+        "plan_name": prefs.plan_name,
+        "update_time_seestar": anchor.strftime("%Y.%m.%d"),
+        "list": [],
+        "summary": [],
+        "lat": lat_deg,
+        "lon": lon_deg,
+        "start_local": anchor.isoformat(),
+        "fov_deg": list(fov_deg),
+        "source": src.name,
+    }
+
+    if not candidates or n_slots <= 0:
+        return plan
+
+    ras = np.array([c.ra_deg for c in candidates])
+    decs = np.array([c.dec_deg for c in candidates])
+
     used_ids: set[int] = set()
-    summary: list[dict] = []
-    seestar_list: list[dict] = []
-
-    cursor = anchor
-    horizon_end = anchor + timedelta(hours=6)
     chosen_names: set[str] = set()
 
-    while (
-        len(summary) < prefs.max_targets
-        and cursor < horizon_end
-        and candidates
-    ):
-        slot_mid_local = cursor + timedelta(minutes=duration_min // 2)
-        slot_mid_utc = datetime.utcfromtimestamp(slot_mid_local.timestamp())
+    for slot_idx in range(n_slots):
+        slot_start = anchor + timedelta(minutes=slot_idx * duration_min)
+        slot_mid = slot_start + timedelta(minutes=duration_min / 2)
+        slot_mid_utc = datetime.utcfromtimestamp(slot_mid.timestamp())
 
-        pick: Cluster | None = None
-        for c in candidates:
-            if c.name in chosen_names:
-                continue
-            if not _is_visible(c, slot_mid_utc, lat_deg, lon_deg, mask,
-                                min_alt_deg=prefs.min_altitude_deg):
-                continue
-            radius = c.radius_deg(prefs.radius_mode)
-            too_big = radius > (fov_min_dim / 2.0)
-            if too_big and not prefs.allow_mosaic:
-                continue
-            pick = c
-            break
+        try:
+            lst_deg = _lst_deg(slot_mid_utc, lon_deg)
+        except Exception:
+            continue
 
-        if pick is None:
-            break
+        alt_deg, az_deg, ha_deg = _altaz_arrays(
+            ras, decs, lat_deg, lst_deg)
+        mask_floor = mask.min_alt_array(az_deg)
+        floor = np.maximum(mask_floor, prefs.min_altitude_deg)
+        visible = alt_deg >= floor
+        # Exclude already-chosen
+        chosen_arr = np.array([c.name in chosen_names for c in candidates])
+        ok = visible & ~chosen_arr
 
+        if not np.any(ok):
+            continue
+
+        idx_visible = np.where(ok)[0]
+        # Sort visible candidates by |HA| ascending — meridian first.
+        order = idx_visible[np.argsort(np.abs(ha_deg[idx_visible]))]
+        top = order[: max(1, prefs.top_k_pool)]
+        chosen_idx = int(rng.choice(top))
+        pick = candidates[chosen_idx]
         chosen_names.add(pick.name)
-        radius = pick.radius_deg(prefs.radius_mode)
-        too_big = radius > (fov_min_dim / 2.0)
 
-        start_min = _minutes_since_local_midnight(cursor, midnight)
-
+        start_min = _minutes_since_local_midnight(slot_start, midnight)
         display = pick.display_name()
-        if too_big and prefs.allow_mosaic:
-            panels = _mosaic_panels(
-                cluster=pick,
-                radius_deg=radius,
-                fov_w_deg=fov_w,
-                fov_h_deg=fov_h,
-                duration_min=duration_min,
-                start_min=start_min,
-                used_ids=used_ids,
-                lp_filter=prefs.lp_filter,
-            )
-            seestar_list.extend(panels)
-            n_panels = len(panels)
-        else:
-            tid = _new_target_id(used_ids)
-            seestar_list.append({
-                "target_id": tid,
-                "target_name": display,
-                "alias_name": pick.name if display != pick.name else "",
-                "target_ra_dec": [pick.ra_hours, pick.dec_deg],
-                "lp_filter": prefs.lp_filter,
-                "start_min": start_min,
-                "duration_min": duration_min,
-            })
-            n_panels = 1
-
-        summary.append({
+        plan["list"].append({
+            "target_id": _new_target_id(used_ids),
+            "target_name": display,
+            "alias_name": pick.name if display != pick.name else "",
+            "target_ra_dec": [pick.ra_hours, pick.dec_deg],
+            "lp_filter": prefs.lp_filter,
+            "start_min": start_min,
+            "duration_min": duration_min,
+        })
+        plan["summary"].append({
             "name": display,
             "catalogue_name": pick.name,
             "ra_deg": pick.ra_deg,
@@ -306,25 +293,16 @@ def build_plan(
             "blocks": prefs.blocks_per_target,
             "duration_min": duration_min,
             "start_min": start_min,
-            "panels": n_panels,
-            "mosaic": n_panels > 1,
-            "radius_deg": radius,
+            "panels": 1,
+            "mosaic": False,
+            "alt_deg": float(alt_deg[chosen_idx]),
+            "ha_deg": float(ha_deg[chosen_idx]),
+            "radius_deg": pick.radius_deg(prefs.radius_mode),
             "dist_pc": pick.dist_pc,
             "n_stars": pick.n_stars,
         })
-        cursor += timedelta(minutes=duration_min)
 
-    return {
-        "plan_name": prefs.plan_name,
-        "update_time_seestar": start_local.strftime("%Y.%m.%d"),
-        "list": seestar_list,
-        "summary": summary,
-        "lat": lat_deg,
-        "lon": lon_deg,
-        "start_local": anchor.isoformat(),
-        "fov_deg": list(fov_deg),
-        "source": src.name,
-    }
+    return plan
 
 
 def to_seestar_payload(plan: dict) -> dict:

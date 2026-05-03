@@ -32,6 +32,54 @@ def _to_utc_naive(dt_local: datetime) -> datetime:
     return datetime.utcfromtimestamp(dt_local.timestamp())
 
 
+def compute_horizons(
+    lat_deg: float,
+    lon_deg: float,
+    ref_local: datetime,
+) -> tuple[datetime, datetime, datetime] | None:
+    """Find the next sunset → sunrise pair for the given location.
+
+    Scans noon → noon+24 h in 5-minute steps and returns
+    ``(sunset_local, midnight_local, sunrise_local)`` as naive local
+    datetimes.  Returns ``None`` if the sun never crosses the horizon
+    in that window (polar day / night) or if astropy is unavailable.
+    """
+    try:
+        from astropy.coordinates import EarthLocation, AltAz, get_sun
+        from astropy.time import Time
+        import astropy.units as u
+    except ImportError:
+        return None
+
+    loc = EarthLocation(lat=lat_deg * u.deg, lon=lon_deg * u.deg)
+    start_local = ref_local.replace(hour=12, minute=0, second=0,
+                                    microsecond=0)
+    n = 24 * 12
+    sample_locals = [start_local + timedelta(minutes=5 * i)
+                     for i in range(n)]
+    sample_utcs = [_to_utc_naive(t) for t in sample_locals]
+    times = Time(sample_utcs)
+    sun_alts = get_sun(times).transform_to(
+        AltAz(obstime=times, location=loc)).alt.deg
+
+    sunset_idx = None
+    sunrise_idx = None
+    for i in range(1, n):
+        a0, a1 = sun_alts[i - 1], sun_alts[i]
+        if sunset_idx is None and a0 >= 0 and a1 < 0:
+            sunset_idx = i
+        elif sunset_idx is not None and a0 < 0 and a1 >= 0:
+            sunrise_idx = i
+            break
+    if sunset_idx is None or sunrise_idx is None:
+        return None
+
+    sunset_local = sample_locals[sunset_idx]
+    sunrise_local = sample_locals[sunrise_idx]
+    midnight_local = sunset_local + (sunrise_local - sunset_local) / 2
+    return sunset_local, midnight_local, sunrise_local
+
+
 def compute_night_window(
     lat_deg: float,
     lon_deg: float,
