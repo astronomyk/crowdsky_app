@@ -296,6 +296,7 @@ def build_plan(
             "panels": 1,
             "mosaic": False,
             "alt_deg": float(alt_deg[chosen_idx]),
+            "az_deg": float(az_deg[chosen_idx]),
             "ha_deg": float(ha_deg[chosen_idx]),
             "radius_deg": pick.radius_deg(prefs.radius_mode),
             "dist_pc": pick.dist_pc,

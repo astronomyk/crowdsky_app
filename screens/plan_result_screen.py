@@ -47,6 +47,19 @@ def _fmt_dec(dec_deg: float) -> str:
     return f"{sign}{d:02d}°{m:02d}'"
 
 
+_COMPASS_DIRS = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"]
+
+
+def _fmt_alt(alt_deg: float) -> str:
+    return f"{alt_deg:+.1f}°"
+
+
+def _fmt_az(az_deg: float) -> str:
+    az = az_deg % 360.0
+    cardinal = _COMPASS_DIRS[round(az / 45.0) % 8]
+    return f"{int(round(az)):03d}° {cardinal}"
+
+
 class PlanResultScreen(Screen):
     is_busy = BooleanProperty(False)
     status = StringProperty("")
@@ -154,7 +167,7 @@ class PlanResultScreen(Screen):
             return
         for s in summary:
             row = BoxLayout(orientation="vertical", size_hint_y=None,
-                            height=dp(54), padding=[dp(8), dp(4)],
+                            height=dp(72), padding=[dp(8), dp(4)],
                             spacing=dp(2))
             top = BoxLayout(orientation="horizontal", size_hint_y=None,
                             height=dp(20))
@@ -184,8 +197,22 @@ class PlanResultScreen(Screen):
                 height=dp(18))
             coord_lbl.bind(size=coord_lbl.setter("text_size"))
 
+            alt = s.get("alt_deg")
+            az = s.get("az_deg")
+            altaz_text = ""
+            if alt is not None and az is not None:
+                altaz_text = (f"Alt {_fmt_alt(float(alt))}    "
+                               f"Az {_fmt_az(float(az))}")
+            altaz_lbl = Label(
+                text=altaz_text,
+                font_size=sp(11), color=(0.55, 0.75, 0.95, 1),
+                halign="left", valign="middle", size_hint_y=None,
+                height=dp(18))
+            altaz_lbl.bind(size=altaz_lbl.setter("text_size"))
+
             row.add_widget(top)
             row.add_widget(coord_lbl)
+            row.add_widget(altaz_lbl)
             container.add_widget(row)
 
     # ------------------------------------------------------------------
