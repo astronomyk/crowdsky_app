@@ -115,6 +115,7 @@ a = Analysis(
         'crowdsky_app.services.plan_builder',
         'crowdsky_app.services.plan_executor',
         'crowdsky_app.services.night_window',
+        'crowdsky_app.services.prefs_store',
         'crowdsky_app.services.seestar_service',
         'crowdsky_app.services.stack_cache',
         'crowdsky_app.services.target_catalogue',

@@ -22,6 +22,8 @@ from ..services.plan_builder import (
     HorizonMask, PlanPrefs, build_plan, fov_for_model,
 )
 from ..services.plan_executor import get_seestar_location
+from ..services.prefs_store import (
+    load_compass_altitudes, save_compass_altitudes)
 
 
 RADIUS_MODES = ["core", "r50", "tidal"]
@@ -47,12 +49,23 @@ class PlanScreen(Screen):
         self._device_info = {}    # {ip: (serial, model)}
         self._location = None     # (lat, lon)
         self._fov = None          # (w, h)
+        self._compass_loaded = False
 
     # ------------------------------------------------------------------
     # Lifecycle
     # ------------------------------------------------------------------
 
     def on_enter(self):
+        # Restore the compass altitudes from disk on first entry, then
+        # bind to changes so further taps persist automatically.
+        if not self._compass_loaded and "horizon" in self.ids:
+            try:
+                self.ids.horizon.altitudes = load_compass_altitudes()
+            except Exception:
+                pass
+            self.ids.horizon.bind(
+                altitudes=lambda _w, val: save_compass_altitudes(val))
+            self._compass_loaded = True
         # Show known seestars if any have been discovered already
         if AppState().available_seestars:
             self._build_seestar_radio_list()

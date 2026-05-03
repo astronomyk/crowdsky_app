@@ -16,7 +16,7 @@ from kivy.uix.popup import Popup
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.button import Button
 from kivy.uix.label import Label
-from kivy.graphics import Color, Line, Ellipse
+from kivy.graphics import Color, Line
 from kivy.core.text import Label as CoreLabel
 from kivy.properties import ListProperty
 from kivy.metrics import dp, sp
@@ -63,13 +63,17 @@ class HorizonCompass(Widget):
             return
 
         with self.canvas:
-            # Background rings (10° steps for context)
-            Color(0.55, 0.55, 0.60, 0.25)
-            for frac in (0.25, 0.5, 0.75):
-                d = r_outer * 2 * frac
-                Ellipse(pos=(cx - d / 2, cy - d / 2), size=(d, d), segments=72)
+            # Concentric reference rings at the picker-step altitudes
+            # (15°, 30°, 45°, 60°, 75°) so the user can read the
+            # current blocking polygon against them.  Outer ring at
+            # 0° is drawn separately below.
+            Color(0.55, 0.55, 0.60, 0.30)
+            for alt_step in (15, 30, 45, 60, 75):
+                r = r_outer * (1.0 - alt_step / 90.0)
+                if r > 0:
+                    Line(circle=(cx, cy, r), width=0.7)
 
-            # Outer ring (horizon)
+            # Outer ring (horizon, 0° altitude)
             Color(0.55, 0.55, 0.60, 0.55)
             Line(circle=(cx, cy, r_outer), width=1.1)
 
