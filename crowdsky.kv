@@ -1380,8 +1380,8 @@
                         valign: 'middle'
                     Slider:
                         id: window_start_slider
-                        min: 16 * 60
-                        max: root.window_end_min
+                        min: root.window_min_extreme
+                        max: root.window_max_extreme
                         step: 15
                         value: root.window_start_min
                         on_value: root.window_start_min = self.value
@@ -1410,8 +1410,8 @@
                         valign: 'middle'
                     Slider:
                         id: window_end_slider
-                        min: root.window_start_min
-                        max: 33 * 60
+                        min: root.window_min_extreme
+                        max: root.window_max_extreme
                         step: 15
                         value: root.window_end_min
                         on_value: root.window_end_min = self.value
@@ -1471,14 +1471,14 @@
 
         # --- Build plan button ---
         Button:
-            text: 'Build Plan'
+            text: 'Build Plan' if root.window_start_min < root.window_end_min else 'Window: start must be before end'
             size_hint_y: None
             height: dp(56)
             font_size: sp(18)
             bold: True
-            background_color: ACCENT_COLOR if not root.is_busy and root.selected_seestar_ip != '' else (0.3, 0.3, 0.35, 1)
+            background_color: ACCENT_COLOR if not root.is_busy and root.selected_seestar_ip != '' and root.window_start_min < root.window_end_min else (0.3, 0.3, 0.35, 1)
             color: 1, 1, 1, 1
-            disabled: root.is_busy or root.selected_seestar_ip == ''
+            disabled: root.is_busy or root.selected_seestar_ip == '' or root.window_start_min >= root.window_end_min
             on_release: root.do_build_plan()
 
 # --- PlanResultScreen ---

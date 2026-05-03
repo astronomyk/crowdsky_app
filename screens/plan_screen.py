@@ -42,10 +42,14 @@ class PlanScreen(Screen):
     lp_filter = BooleanProperty(False)
     min_altitude = NumericProperty(30)         # deg above horizon (global floor)
     # Observing window: minutes-since-local-midnight (start day).
-    # Default sunset → sunrise will be set when a Seestar is selected
-    # and we know lat/lon; until then these are sensible fallbacks.
+    # Defaults are placeholders; the real bounds are computed from
+    # sunset/sunrise with a 30-min twilight buffer when a Seestar
+    # is selected.  The two sliders are independent — the user can
+    # set start > end, in which case Build Plan is disabled.
     window_start_min = NumericProperty(20 * 60)        # 20:00
     window_end_min = NumericProperty(24 * 60 + 5 * 60)  # 05:00 next day
+    window_min_extreme = NumericProperty(16 * 60)       # 16:00
+    window_max_extreme = NumericProperty(33 * 60)       # 09:00 next day
     window_start_text = StringProperty("20:00")
     window_end_text = StringProperty("05:00")
 
@@ -187,16 +191,28 @@ class PlanScreen(Screen):
         sunset, _, sunrise = horizons
         midnight = sunset.replace(hour=0, minute=0, second=0,
                                    microsecond=0)
-        sunset_min = (int((sunset - midnight).total_seconds() // 60)
-                       // 15) * 15
-        sunrise_min = -(-int((sunrise - midnight).total_seconds() // 60)
-                         // 15) * 15  # round up
+        sunset_min = int((sunset - midnight).total_seconds() // 60)
+        sunrise_min = int((sunrise - midnight).total_seconds() // 60)
         Clock.schedule_once(lambda dt: self._apply_window(
             sunset_min, sunrise_min))
 
-    def _apply_window(self, start_min, end_min):
-        self.window_start_min = start_min
-        self.window_end_min = end_min
+    def _apply_window(self, sunset_min: int, sunrise_min: int) -> None:
+        """Set slider extremes 30 min inside sunset / sunrise on the chunk grid.
+
+        Both sliders share the same [low, high] range; defaults snap
+        to the extremes (earliest possible start, latest possible end).
+        """
+        import math
+        low = int(math.ceil((sunset_min + 30) / 15) * 15)
+        high = int(math.floor((sunrise_min - 30) / 15) * 15)
+        if high <= low:
+            high = low + 60      # degenerate (polar / very short night)
+        # Bump extremes first so the value-clamping logic in the slider
+        # doesn't snap our new defaults back to the old extreme.
+        self.window_min_extreme = low
+        self.window_max_extreme = high
+        self.window_start_min = low
+        self.window_end_min = high
 
     @staticmethod
     def _fmt_minute_of_day(m: int) -> str:
