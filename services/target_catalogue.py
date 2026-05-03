@@ -22,16 +22,14 @@ from typing import Iterable
 
 SHORTLIST_FILENAME = "hunt24_shortlist.csv"
 
-# Names that look like Messier or NGC entries.  The shortlist is dominated
-# by HSC_/Theia_/OCSN_ designations, so a name match is a useful proxy
-# for "well known".
-_MESSIER_RE = re.compile(r"^(M|Messier)[\s_]*\d+", re.IGNORECASE)
-_NGC_RE = re.compile(r"^(NGC|IC)[\s_]*\d+", re.IGNORECASE)
+# Match Messier / NGC / IC anywhere in a comma-separated name list.
+_MESSIER_RE = re.compile(r"(?:^|,\s*)M(?:essier)?[\s_]*\d+\b", re.IGNORECASE)
+_NGC_RE = re.compile(r"(?:^|,\s*)(?:NGC|IC)[\s_]*\d+\b", re.IGNORECASE)
 
 
 @dataclass(frozen=True)
 class Cluster:
-    """One row of the Hunt+24 shortlist."""
+    """One row of the Hunt+24 shortlist (post-enrichment)."""
     rank: int
     name: str
     ra_deg: float
@@ -48,6 +46,9 @@ class Cluster:
     pm_ra: float
     pm_dec: float
     parallax_mas: float
+    rc_deg: float        # core radius (from Hunt+24 clusters.dat)
+    rt_deg: float        # tidal radius (from Hunt+24 clusters.dat)
+    all_names: str       # comma-separated literature cross-matches
 
     @property
     def ra_hours(self) -> float:
@@ -55,15 +56,28 @@ class Cluster:
 
     @property
     def is_messier(self) -> bool:
-        return bool(_MESSIER_RE.match(self.name))
+        return bool(_MESSIER_RE.search(self.all_names))
 
     @property
     def is_ngc_ic(self) -> bool:
-        return bool(_NGC_RE.match(self.name))
+        return bool(_NGC_RE.search(self.all_names))
 
     @property
     def is_well_known(self) -> bool:
         return self.is_messier or self.is_ngc_ic
+
+    def display_name(self) -> str:
+        """Pick the most user-recognisable name from ``all_names``.
+
+        Preference order: Messier > NGC/IC > primary ``Name`` field.
+        """
+        m = _MESSIER_RE.search(self.all_names)
+        if m:
+            return m.group(0).lstrip(", ").strip()
+        n = _NGC_RE.search(self.all_names)
+        if n:
+            return n.group(0).lstrip(", ").strip()
+        return self.name
 
     def radius_deg(self, mode: str) -> float:
         """Effective radius in degrees for the requested *mode*.
@@ -73,20 +87,22 @@ class Cluster:
         mode : str
             One of ``"core"``, ``"r50"``, or ``"tidal"``.
 
-        The shortlist only carries ``r50_deg`` and ``area_sqdeg``, so:
+        Uses the Hunt+24 catalogue columns directly:
 
-        - ``r50``  → ``r50_deg`` directly,
-        - ``core`` → ``r50_deg / 2`` (rough),
-        - ``tidal`` → ``sqrt(area_sqdeg / pi)``.
+        - ``r50``  → ``r50_deg``,
+        - ``core`` → ``rc_deg``  (falls back to ``r50_deg / 2`` if missing),
+        - ``tidal`` → ``rt_deg`` (falls back to ``sqrt(area / pi)``).
         """
         if mode == "r50":
             return self.r50_deg
         if mode == "core":
-            return self.r50_deg / 2.0
+            return self.rc_deg if self.rc_deg > 0 else self.r50_deg / 2.0
         if mode == "tidal":
-            if self.area_sqdeg <= 0:
-                return self.r50_deg
-            return math.sqrt(self.area_sqdeg / math.pi)
+            if self.rt_deg > 0:
+                return self.rt_deg
+            if self.area_sqdeg > 0:
+                return math.sqrt(self.area_sqdeg / math.pi)
+            return self.r50_deg
         raise ValueError(f"unknown radius mode: {mode!r}")
 
 
@@ -127,23 +143,30 @@ def load_shortlist() -> list[Cluster]:
     with path.open("r", encoding="utf-8") as fh:
         reader = csv.DictReader(fh)
         for row in reader:
+            def _f(k: str) -> float:
+                v = row.get(k, "")
+                return float(v) if v not in ("", None) else 0.0
+
             out.append(Cluster(
                 rank=int(row["rank"]),
                 name=row["Name"],
-                ra_deg=float(row["RA_deg"]),
-                dec_deg=float(row["Dec_deg"]),
-                glon_deg=float(row["GLON_deg"]),
-                glat_deg=float(row["GLAT_deg"]),
-                dist_pc=float(row["dist_pc"]),
+                ra_deg=_f("RA_deg"),
+                dec_deg=_f("Dec_deg"),
+                glon_deg=_f("GLON_deg"),
+                glat_deg=_f("GLAT_deg"),
+                dist_pc=_f("dist_pc"),
                 n_stars=int(row["N_stars"]),
-                r50_pc=float(row["r50_pc"]),
-                r50_deg=float(row["r50_deg"]),
-                area_sqdeg=float(row["area_sqdeg"]),
-                log_age_yr=float(row["logAge_yr"]),
-                av_mag=float(row["AV_mag"]),
-                pm_ra=float(row["pmRA_masyr"]),
-                pm_dec=float(row["pmDec_masyr"]),
-                parallax_mas=float(row["parallax_mas"]),
+                r50_pc=_f("r50_pc"),
+                r50_deg=_f("r50_deg"),
+                area_sqdeg=_f("area_sqdeg"),
+                log_age_yr=_f("logAge_yr"),
+                av_mag=_f("AV_mag"),
+                pm_ra=_f("pmRA_masyr"),
+                pm_dec=_f("pmDec_masyr"),
+                parallax_mas=_f("parallax_mas"),
+                rc_deg=_f("rc_deg"),
+                rt_deg=_f("rt_deg"),
+                all_names=row.get("all_names", row["Name"]).strip(),
             ))
     _cache = out
     return out

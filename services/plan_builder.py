@@ -271,6 +271,7 @@ def build_plan(
 
         start_min = _minutes_since_local_midnight(cursor, midnight)
 
+        display = pick.display_name()
         if too_big and prefs.allow_mosaic:
             panels = _mosaic_panels(
                 cluster=pick,
@@ -288,8 +289,8 @@ def build_plan(
             tid = _new_target_id(used_ids)
             seestar_list.append({
                 "target_id": tid,
-                "target_name": pick.name,
-                "alias_name": "",
+                "target_name": display,
+                "alias_name": pick.name if display != pick.name else "",
                 "target_ra_dec": [pick.ra_hours, pick.dec_deg],
                 "lp_filter": prefs.lp_filter,
                 "start_min": start_min,
@@ -298,7 +299,8 @@ def build_plan(
             n_panels = 1
 
         summary.append({
-            "name": pick.name,
+            "name": display,
+            "catalogue_name": pick.name,
             "ra_deg": pick.ra_deg,
             "dec_deg": pick.dec_deg,
             "blocks": prefs.blocks_per_target,
