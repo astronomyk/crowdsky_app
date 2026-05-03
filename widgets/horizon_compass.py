@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import math
 
+from kivy.clock import Clock
 from kivy.uix.widget import Widget
 from kivy.uix.popup import Popup
 from kivy.uix.boxlayout import BoxLayout
@@ -36,7 +37,12 @@ class HorizonCompass(Widget):
         super().__init__(**kwargs)
         self.bind(size=self._redraw, pos=self._redraw,
                   altitudes=self._redraw)
-        self._redraw()
+        # Defer the first paint to the next frame so layout has had a
+        # chance to position us — otherwise we draw at the default
+        # (0, 0, 100, 100) and only re-paint on the next size/pos event,
+        # which doesn't always fire when our final size matches our
+        # initial size.
+        Clock.schedule_once(lambda *_: self._redraw(), 0)
 
     def _redraw(self, *_):
         self.canvas.clear()
