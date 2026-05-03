@@ -1315,7 +1315,7 @@
                     Slider:
                         id: blocks_slider
                         min: 2
-                        max: 40
+                        max: 16
                         step: 1
                         value: root.blocks_per_target
                         on_value: root.blocks_per_target = self.value
@@ -1354,49 +1354,12 @@
                         size_hint_x: None
                         width: dp(34)
 
-                BoxLayout:
-                    orientation: 'horizontal'
-                    size_hint_y: None
-                    height: dp(34)
-                    spacing: dp(4)
-                    Label:
-                        text: 'Targets:'
-                        font_size: sp(12)
-                        color: TEXT_COLOR
-                        size_hint_x: None
-                        width: dp(70)
-                        halign: 'left'
-                        text_size: self.size
-                        valign: 'middle'
-                    Spinner:
-                        text: ['Messier only', 'Messier + NGC/IC', 'Any from Hunt+24'][int(root.name_class_idx)]
-                        values: ['Messier only', 'Messier + NGC/IC', 'Any from Hunt+24']
-                        font_size: sp(12)
-                        on_text:
-                            opts = ['Messier only', 'Messier + NGC/IC', 'Any from Hunt+24']
-                            root.name_class_idx = opts.index(self.text) if self.text in opts else 2
-
-                BoxLayout:
-                    orientation: 'horizontal'
-                    size_hint_y: None
-                    height: dp(34)
-                    spacing: dp(4)
-                    Label:
-                        text: 'Radius:'
-                        font_size: sp(12)
-                        color: TEXT_COLOR
-                        size_hint_x: None
-                        width: dp(70)
-                        halign: 'left'
-                        text_size: self.size
-                        valign: 'middle'
-                    Spinner:
-                        text: ['Core', 'R-50%', 'Tidal'][int(root.radius_mode_idx)]
-                        values: ['Core', 'R-50%', 'Tidal']
-                        font_size: sp(12)
-                        on_text:
-                            opts = ['Core', 'R-50%', 'Tidal']
-                            root.radius_mode_idx = opts.index(self.text) if self.text in opts else 1
+                # NOTE: the "Targets" (Messier/NGC/Any) and "Radius"
+                # (Core/R-50%/Tidal) Spinner rows have been hidden from
+                # the UI for now.  The properties on PlanScreen still
+                # default to "any" and "r50", and the underlying logic
+                # in plan_builder still honours both — re-add the two
+                # BoxLayouts here when the UI options come back.
 
                 # --- Constraints (compass) ---
                 Label:

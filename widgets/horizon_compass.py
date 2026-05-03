@@ -37,19 +37,15 @@ class HorizonCompass(Widget):
         super().__init__(**kwargs)
         self.bind(size=self._redraw, pos=self._redraw,
                   altitudes=self._redraw)
-        # Inside a ScrollView the parent layout sometimes finalises our
-        # width across multiple frames, and not every intermediate value
-        # fires the size bind reliably.  Retry the initial paint until
-        # we see a credible widget width.
-        self._initial_attempts = 0
-        Clock.schedule_once(self._try_initial_paint, 0)
-
-    def _try_initial_paint(self, _dt):
-        self._initial_attempts += 1
-        if self.width < dp(150) and self._initial_attempts < 30:
-            Clock.schedule_once(self._try_initial_paint, 0)
-            return
-        self._redraw()
+        # Inside a ScrollView the parent layout finalises our width
+        # across several frames, and the size/pos bind doesn't always
+        # fire on every intermediate value (we end up baked at an
+        # intermediate width that's > dp(150) but < the final width).
+        # Force redraws at a handful of staggered delays so the very
+        # last one is guaranteed to land after layout has settled.
+        for delay in (0.0, 0.1, 0.3, 0.6, 1.0, 1.5):
+            Clock.schedule_once(
+                lambda *_args, _d=delay: self._redraw(), delay)
 
     def _redraw(self, *_):
         self.canvas.clear()
